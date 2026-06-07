@@ -4,12 +4,13 @@ Demo game 2D dùng Phaser và HTML/CSS overlay.
 
 ## Đọc code theo thứ tự
 
-1. `plan.md`: yêu cầu sản phẩm và thông số chiến đấu.
-2. `src/README.md`: bản đồ mã nguồn.
-3. `src/main.js`: khởi tạo game và UI.
-4. `src/lang/LangLaScene.js`: vòng lặp gameplay.
-5. `src/ui.js`: luồng đăng nhập, chọn làng/nhân vật và HUD.
-6. `public/README.md`: quy ước asset.
+1. `requirment.md`: quy chuẩn bắt buộc về thiết bị, responsive, UI và kiến trúc.
+2. `plan.md`: yêu cầu sản phẩm và thông số chiến đấu.
+3. `src/README.md`: bản đồ mã nguồn.
+4. `src/main.js`: khởi tạo game và UI.
+5. `src/lang/LangLaScene.js`: vòng lặp gameplay.
+6. `src/ui.js`: luồng đăng nhập, chọn làng/nhân vật và HUD.
+7. `public/README.md`: quy ước asset.
 
 ## Chạy dự án
 

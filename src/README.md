@@ -1,5 +1,7 @@
 # Thư mục `src`
 
+Đọc `../requirment.md` trước khi sửa bất kỳ file nào trong thư mục này.
+
 ## Luồng khởi động
 
 `main.js` tạo Phaser từ `gameConfig.js`, chờ scene sẵn sàng rồi gọi `startUI()` từ `ui.js`.
@@ -11,6 +13,8 @@
 - `api.js`: adapter dữ liệu. Dùng REST API khi có `VITE_API_URL`, nếu không dùng `localStorage`.
 - `ui.js`: điều phối màn hình auth, chọn làng/nhân vật, HUD, modal, cooldown và lưu tiến trình.
 - `style.css`: toàn bộ giao diện HTML overlay và responsive.
+
+Responsive phải tuân theo ma trận thiết bị trong `../requirment.md`. Các override theo tỷ lệ màn hình nằm cuối `style.css`.
 
 ## Thư mục con
 
