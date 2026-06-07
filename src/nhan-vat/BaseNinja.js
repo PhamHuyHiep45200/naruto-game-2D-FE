@@ -50,21 +50,21 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  playAction(name) {
-    if (this.isJumping || this.isActing) return false;
+  playAction(name, allowWhileJumping = false) {
+    if ((this.isJumping && !allowWhileJumping) || this.isActing) return false;
     const animationKey = `${this.config.key}-${name}`;
     this.isActing = true;
     this.setVelocityX(0);
     this.play(animationKey, true);
     this.once(`animationcomplete-${animationKey}`, () => {
       this.isActing = false;
-      this.play(`${this.config.key}-idle`, true);
+      this.play(`${this.config.key}-${this.isJumping ? "jump" : "idle"}`, true);
     });
     return true;
   }
 
   attackAnimation() { return this.playAction("attack"); }
-  skillAnimation() { return this.playAction("skill"); }
+  skillAnimation() { return this.playAction("skill", true); }
 
   jump() {
     if (this.isJumping) return;
@@ -78,7 +78,7 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
       yoyo: true,
       onComplete: () => {
         this.isJumping = false;
-        this.play(`${this.config.key}-idle`, true);
+        if (!this.isActing) this.play(`${this.config.key}-idle`, true);
       },
     });
   }

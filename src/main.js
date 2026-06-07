@@ -1,19 +1,9 @@
 import Phaser from "phaser";
 import "./style.css";
-import { LangLaScene } from "./lang/LangLaScene";
+import { gameConfig } from "./gameConfig";
 import { startUI } from "./ui";
 
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: "game",
-  width: 1280,
-  height: 720,
-  backgroundColor: "#0b151c",
-  physics: { default: "arcade", arcade: { gravity: { y: 0 }, debug: false } },
-  scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [LangLaScene],
-  render: { antialias: true, pixelArt: false },
-});
+const game = new Phaser.Game(gameConfig);
 
 const bindWhenReady = () => {
   const scene = game.scene.getScene("lang-la");

@@ -10,7 +10,7 @@ Tài liệu này đặc tả cấu trúc hệ thống và cung cấp 5 bộ Prom
 Để giao diện hiển thị sắc nét, co giãn (responsive) mượt màng trên mọi màn hình điện thoại mà không bị gián đoạn hiệu năng, game được chia làm 2 lớp:
 
 1.  **Lớp Game Layer (Phaser.js):** Chạy bên dưới, chịu trách nhiệm render màn hình ngang 2D, nhân vật chạy nhảy vật lý, quái vật và các hiệu ứng chiến đấu. Lớp này chịu trách nhiệm hiển thị:
-    *   **Nền động màn hình Đăng Nhập:** Lớp mây trôi lững lờ hoặc hạt phát sáng bay lơ lửng trôi nổi chậm ở cảnh nền phía sau form đăng nhập, màn đăng nhập và tạo sử dụng ảnh authen.jpg.
+    *   **Nền động màn hình Đăng Nhập:** Lớp mây trôi lững lờ hoặc hạt phát sáng bay lơ lửng trôi nổi chậm ở cảnh nền phía sau form đăng nhập, màn đăng nhập và tạo sử dụng ảnh authen.png.
     *   **Hệ thống hiển thị Khóa mục tiêu:** Vẽ một **Mũi tên đỏ nhỏ phát sáng (glowing red arrow)** lơ lửng trên đầu quái vật hiện đang bị khóa mục tiêu (nhấp nhô nhẹ lên xuống).
     *   **Hiệu ứng Đánh trúng & Rơi Chackra:** Khi người chơi đấm hoặc chưởng trúng quái, từ quái vật sẽ văng ra các **hạt năng lượng màu xanh dương phát sáng (green Chackra particles)** tự động bay hút về phía nhân vật. Đồng thời, trên đầu nhân vật hiển thị chữ số **"+X"** màu xanh lá bay lên.
     *   **Hiệu ứng Tiêu diệt quái (Substitution Poof):** Khi quái hết máu, quái vật lập tức biến mất trong một làn khói trắng hình đám mây nhỏ đặc trưng của ninja.
@@ -85,7 +85,7 @@ Hãy lập trình một giao diện Đăng nhập và Đăng ký (Login & Regist
 4. Có Form Đăng Ký gồm: Tên tài khoản, Email, Mật khẩu, Xác nhận mật khẩu, nút "Đăng Ký", và một nút link chuyển đổi "Quay lại Đăng nhập".
 5. Có hiệu ứng chuyển cảnh mượt mà giữa hai form (Fade-in/out). Có kiểm tra dữ liệu đầu vào cơ bản (Validation: Mật khẩu tối thiểu 6 ký tự, email đúng định dạng).
 6. Khi người dùng nhấn nút Đăng Nhập hoặc Đăng Ký thành công, ẩn toàn bộ giao diện này đi bằng hiệu ứng mờ dần (opacity: 0) và gọi hàm Javascript callback: `onLoginSuccess(username)`.
-7. Màn đăng nhập và tạo sử dụng ảnh authen.jpg
+7. Màn đăng nhập và tạo sử dụng ảnh authen.png
 ```
 
 ---

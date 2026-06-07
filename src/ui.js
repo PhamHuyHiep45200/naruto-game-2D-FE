@@ -1,4 +1,31 @@
 import { api } from "./api";
+import { skillFolderByClan, villages } from "./ui/constants";
+import { bindJoystick } from "./ui/joystick";
+import {
+  ArrowLeft,
+  CircleArrowUp,
+  Eye,
+  Flame,
+  LockKeyhole,
+  LogIn,
+  LogOut,
+  MapPinned,
+  Menu,
+  Music,
+  Play,
+  ScrollText,
+  ScanSearch,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  UserPlus,
+  UserRound,
+  Volume2,
+  Wind,
+  X,
+  Zap,
+  createIcons,
+} from "lucide";
 
 let started = false;
 let profile = null;
@@ -10,11 +37,6 @@ let saveTimer = null;
 const $ = selector => document.querySelector(selector);
 const $$ = selector => document.querySelectorAll(selector);
 const characterByName = name => scene.characterList.find(character => character.name === name);
-const skillFolderByClan = {
-  "HYU-GA": "hyuga",
-  "SEN-JIN": "senju",
-  "UCHY-HA": "uchiha",
-};
 
 function showScreen(id) {
   $$(".screen").forEach(screen => screen.classList.toggle("visible", screen.id === id));
@@ -37,6 +59,17 @@ function errorText(error) {
 
 function setBusy(form, busy) {
   form.querySelector("button[type=submit]").disabled = busy;
+}
+
+function selectModalTab(tabId) {
+  $$(".tab-button").forEach(button => button.classList.toggle("active", button.dataset.tab === tabId));
+  $$(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === tabId));
+}
+
+function openSystemModal(tabId = "quest-tab", settingsOnly = false) {
+  $("#system-modal").classList.toggle("settings-only", settingsOnly);
+  selectModalTab(tabId);
+  $("#system-modal").classList.add("visible");
 }
 
 function renderProfile() {
@@ -84,18 +117,19 @@ function queueProgressSave() {
 }
 
 function renderCharacterSelection() {
+  const signs = $("#village-signs");
   const container = $("#clan-cards");
-  container.innerHTML = "";
-  const clans = [
-    ["HYU-GA", "Tấn công tốc độ cao"],
-    ["SEN-JIN", "Cân bằng công thủ"],
-    ["UCHY-HA", "Sát thương bộc phát cực lớn"],
-  ];
-  clans.forEach(([clan, description]) => {
-    const card = document.createElement("article");
-    card.className = `clan-card ${clan.toLowerCase()}`;
-    card.innerHTML = `<h2>${clan}</h2><p>${description}</p><div class="avatar-list"></div>`;
-    scene.characterList.filter(character => character.clan === clan).forEach(character => {
+  const renderClan = village => {
+    selectedCharacter = null;
+    $("#start-game").disabled = true;
+    $("#selected-village-label").textContent = village.village;
+    $("#selected-clan-name").textContent = village.clan;
+    $("#selected-clan-description").textContent = village.description;
+    $("#character-stage").className = `character-stage ${village.theme}`;
+    $$(".village-sign").forEach(sign => sign.classList.toggle("active", sign.dataset.clan === village.clan));
+    container.innerHTML = "";
+
+    scene.characterList.filter(character => character.clan === village.clan).forEach(character => {
       const button = document.createElement("button");
       button.className = "avatar-choice";
       button.dataset.name = character.name;
@@ -105,10 +139,21 @@ function renderCharacterSelection() {
         $$(".avatar-choice").forEach(item => item.classList.toggle("active", item.dataset.name === character.name));
         $("#start-game").disabled = false;
       };
-      card.querySelector(".avatar-list").append(button);
+      container.append(button);
     });
-    container.append(card);
+  };
+
+  signs.innerHTML = "";
+  villages.forEach(village => {
+    const button = document.createElement("button");
+    button.className = `village-sign ${village.theme}`;
+    button.dataset.clan = village.clan;
+    button.innerHTML = `<i class="village-icon" data-lucide="${village.icon}"></i><small>${village.clan}</small><strong>${village.village}</strong><span>${village.description}</span>`;
+    button.onclick = () => renderClan(village);
+    signs.append(button);
   });
+
+  renderClan(villages[0]);
 }
 
 async function enterGame() {
@@ -210,12 +255,15 @@ function bindGameUI() {
   });
   $("#action").onclick = () => selectedSkill === "punch" ? scene.punch() : scene.castSkill();
   $("#target").onclick = () => scene.nextTarget();
-  bindJoystick();
-  $("#menu-open").onclick = () => $("#system-modal").classList.add("visible");
-  $("#menu-close").onclick = () => $("#system-modal").classList.remove("visible");
+  bindJoystick($("#joystick"), (x, y) => scene.setVirtualMove(x, y));
+  $("#menu-open").onclick = () => openSystemModal("quest-tab");
+  $("#character-settings").onclick = () => openSystemModal("settings-tab", true);
+  $("#menu-close").onclick = () => {
+    $("#system-modal").classList.remove("visible");
+    $("#system-modal").classList.remove("settings-only");
+  };
   $$(".tab-button").forEach(button => button.onclick = () => {
-    $$(".tab-button").forEach(item => item.classList.toggle("active", item === button));
-    $$(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === button.dataset.tab));
+    selectModalTab(button.dataset.tab);
   });
   ["bgm", "sfx"].forEach(setting => {
     $(`#${setting}-toggle`).onchange = async event => {
@@ -243,50 +291,47 @@ function bindGameUI() {
     await api.logout();
     profile = null;
     $("#system-modal").classList.remove("visible");
+    $("#system-modal").classList.remove("settings-only");
     showScreen("auth-screen");
   };
-}
-
-function bindJoystick() {
-  const joystick = $("#joystick");
-  const knob = joystick.querySelector("i");
-  const update = event => {
-    const bounds = joystick.getBoundingClientRect();
-    const radius = bounds.width / 2;
-    let x = (event.clientX - bounds.left - radius) / radius;
-    let y = (event.clientY - bounds.top - radius) / radius;
-    const length = Math.hypot(x, y);
-    if (length > 1) {
-      x /= length;
-      y /= length;
-    }
-    knob.style.transform = `translate(${x * radius * .5}px, ${y * radius * .5}px)`;
-    scene.setVirtualMove(x, y);
-  };
-  const reset = () => {
-    knob.style.transform = "translate(0, 0)";
-    scene.setVirtualMove(0, 0);
-  };
-  joystick.onpointerdown = event => {
-    joystick.setPointerCapture(event.pointerId);
-    update(event);
-  };
-  joystick.onpointermove = event => {
-    if (joystick.hasPointerCapture(event.pointerId)) update(event);
-  };
-  joystick.onpointerup = reset;
-  joystick.onpointercancel = reset;
 }
 
 export async function startUI(game) {
   if (started) return;
   started = true;
   scene = game.scene.getScene("lang-la");
+  const renderIcons = () => createIcons({
+    icons: {
+      ArrowLeft,
+      CircleArrowUp,
+      Eye,
+      Flame,
+      LockKeyhole,
+      LogIn,
+      LogOut,
+      MapPinned,
+      Menu,
+      Music,
+      Play,
+      ScrollText,
+      ScanSearch,
+      Settings,
+      SlidersHorizontal,
+      Sparkles,
+      UserPlus,
+      UserRound,
+      Volume2,
+      Wind,
+      X,
+      Zap,
+    },
+  });
   const particles = $(".auth-particles");
   particles.innerHTML = Array.from({ length: 18 }, (_, index) =>
     `<i style="--x:${(index * 37) % 100}%;--delay:${-(index % 7)}s;--duration:${5 + index % 5}s"></i>`
   ).join("");
   renderCharacterSelection();
+  renderIcons();
   bindAuth();
   bindGameUI();
   $("#start-game").onclick = async () => {

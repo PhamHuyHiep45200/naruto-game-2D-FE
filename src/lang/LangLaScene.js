@@ -1,17 +1,7 @@
 import Phaser from "phaser";
 import { characters } from "../nhan-vat/configs";
-import { Naruto } from "../nhan-vat/Naruto";
-import { Minato } from "../nhan-vat/Minato";
-import { Kakashi } from "../nhan-vat/Kakashi";
-import { Itachi } from "../nhan-vat/Itachi";
-import { Obito } from "../nhan-vat/Obito";
-import { Sakura } from "../nhan-vat/Sakura";
-import { Neyji } from "../nhan-vat/Neyji";
-import { Sasuke } from "../nhan-vat/Sasuke";
-import { Hinata } from "../nhan-vat/Hinata";
+import { getCharacterClass } from "../nhan-vat/registry";
 import { MocNhan } from "../quai-vat/MocNhan";
-
-const classes = { naruto: Naruto, minato: Minato, kakashi: Kakashi, sasuke: Sasuke, itachi: Itachi, obito: Obito, hinata: Hinata, sakura: Sakura, neyji: Neyji };
 
 export class LangLaScene extends Phaser.Scene {
   constructor() { super("lang-la"); }
@@ -34,6 +24,7 @@ export class LangLaScene extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys("W,A,S,D,E,Q");
     this.virtualMove = { x: 0, y: 0 };
     this.cooldowns = { punch: 0, blast: 0 };
+    this.homingProjectiles = new Set();
     this.gameplayEnabled = false;
     this.input.keyboard.on("keydown-SPACE", () => this.punch());
     this.input.keyboard.on("keydown-E", () => this.castSkill());
@@ -58,6 +49,7 @@ export class LangLaScene extends Phaser.Scene {
     const left = this.cursors.left.isDown || this.keys.A.isDown || this.virtualMove.x < -.25;
     const right = this.cursors.right.isDown || this.keys.D.isDown || this.virtualMove.x > .25;
     this.player.move(left ? -1 : right ? 1 : 0);
+    this.updateHomingProjectiles();
     this.enemies.forEach((enemy, i) => {
       if (enemy.active) enemy.setFlipX(enemy.x > this.player.x);
       if (enemy.active && Phaser.Math.Distance.Between(enemy.x, enemy.y, this.player.x, this.player.y) < 115) {
@@ -75,7 +67,7 @@ export class LangLaScene extends Phaser.Scene {
   switchCharacter(config) {
     const x = this.player?.x ?? 260;
     this.player?.destroy();
-    const CharacterClass = classes[config.key];
+    const CharacterClass = getCharacterClass(config.key);
     this.player = new CharacterClass(this, config).setPosition(x, 570);
     this.cameras.main?.startFollow(this.player, true, .08, .08);
     this.events.emit("character", config);
@@ -143,26 +135,41 @@ export class LangLaScene extends Phaser.Scene {
     if (!this.player.skillAnimation()) return;
     if (!this.startCooldown("blast", this.player.config.skillCooldown)) return;
     this.player.setFlipX(target.x < this.player.x);
-    const direction = target.x < this.player.x ? -1 : 1;
-    const orb = this.add.image(
+    const orb = this.physics.add.image(
       this.player.body.center.x,
       this.player.body.center.y,
       this.player.config.skillImage,
     )
       .setDepth(7)
-      .setDisplaySize(84, 84)
-      .setFlipX(direction < 0);
-    this.tweens.add({
-      targets: orb,
-      x: target.body.center.x,
-      y: target.body.center.y,
-      duration: 360,
-      ease: "Linear",
-      onComplete: () => {
-        orb.destroy();
-        this.hitEnemy(target, this.player.config.skillDamage);
-      },
+      .setDisplaySize(84, 84);
+    orb.body.setAllowGravity(false);
+    orb.homingTarget = target;
+    orb.damageAmount = this.player.config.skillDamage;
+    orb.expiresAt = this.time.now + 1800;
+    this.homingProjectiles.add(orb);
+  }
+
+  updateHomingProjectiles() {
+    this.homingProjectiles.forEach(projectile => {
+      const target = projectile.homingTarget;
+      if (!projectile.active || !target?.active || this.time.now >= projectile.expiresAt) {
+        this.destroyProjectile(projectile);
+        return;
+      }
+
+      this.physics.moveToObject(projectile, target, 680);
+      projectile.setFlipX(projectile.body.velocity.x < 0);
+      if (Phaser.Math.Distance.Between(projectile.x, projectile.y, target.body.center.x, target.body.center.y) <= 38) {
+        const damage = projectile.damageAmount;
+        this.destroyProjectile(projectile);
+        this.hitEnemy(target, damage);
+      }
     });
+  }
+
+  destroyProjectile(projectile) {
+    this.homingProjectiles.delete(projectile);
+    if (projectile?.active) projectile.destroy();
   }
 
   hitEnemy(enemy, amount) {

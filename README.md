@@ -1,23 +1,30 @@
-# Shinobi Làng Lá
+# Shinobi Meridian - Frontend
 
-Playable demo 2D dùng Phaser 3 và Vite.
+Demo game 2D dùng Phaser và HTML/CSS overlay.
+
+## Đọc code theo thứ tự
+
+1. `plan.md`: yêu cầu sản phẩm và thông số chiến đấu.
+2. `src/README.md`: bản đồ mã nguồn.
+3. `src/main.js`: khởi tạo game và UI.
+4. `src/lang/LangLaScene.js`: vòng lặp gameplay.
+5. `src/ui.js`: luồng đăng nhập, chọn làng/nhân vật và HUD.
+6. `public/README.md`: quy ước asset.
 
 ## Chạy dự án
 
 ```bash
 npm install
 npm run dev
+npm run build
 ```
 
-## Điều khiển
+Không khai báo `VITE_API_URL` thì game dùng tài khoản demo trong `localStorage`.
+Khai báo biến này theo `.env.example` để dùng backend thật.
 
-- `A/D` hoặc phím trái/phải: di chuyển.
-- `W` hoặc phím lên: nhảy.
-- `Space`: đấm; tự áp sát khi mục tiêu cách 40-150px.
-- `E`: dùng chưởng trong tầm 40-300px.
-- `Q`: đổi Mộc Nhân đang khóa.
-- Có thể bấm trực tiếp Mộc Nhân hoặc các nút hành động trên màn hình.
+## Quy tắc refactor
 
-Mỗi nhân vật có tốc độ, sát thương đấm, sát thương chưởng và kỹ năng riêng trong `src/nhan-vat/configs.js`. Logic Mộc Nhân, nhận sát thương và hồi sinh nằm trong `src/quai-vat/MocNhan.js`.
-
-Toàn bộ hình ảnh nằm trong `public/imgs` và được truy cập từ mã nguồn bằng đường dẫn `/imgs/...`.
+- Không đổi DOM ID trong `index.html` nếu chưa cập nhật selector tại `src/ui.js`.
+- Không đặt luật chiến đấu trong UI; luật chiến đấu thuộc `LangLaScene`.
+- Cấu hình nhân vật nằm tại `src/nhan-vat/configs.js`.
+- Mỗi thư mục có `README.md`; cập nhật tài liệu khi thêm hoặc đổi trách nhiệm file.
