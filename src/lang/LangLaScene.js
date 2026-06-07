@@ -32,6 +32,9 @@ export class LangLaScene extends Phaser.Scene {
     this.add.rectangle(1024, 720, 2048, 96, 0x07130d, .18).setDepth(1);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys("W,A,S,D,E,Q");
+    this.virtualMove = { x: 0, y: 0 };
+    this.cooldowns = { punch: 0, blast: 0 };
+    this.gameplayEnabled = false;
     this.input.keyboard.on("keydown-SPACE", () => this.punch());
     this.input.keyboard.on("keydown-E", () => this.castSkill());
     this.input.keyboard.on("keydown-Q", () => this.nextTarget());
@@ -48,8 +51,12 @@ export class LangLaScene extends Phaser.Scene {
 
   update() {
     if (!this.player) return;
-    const left = this.cursors.left.isDown || this.keys.A.isDown;
-    const right = this.cursors.right.isDown || this.keys.D.isDown;
+    if (!this.gameplayEnabled) {
+      this.player.move(0);
+      return;
+    }
+    const left = this.cursors.left.isDown || this.keys.A.isDown || this.virtualMove.x < -.25;
+    const right = this.cursors.right.isDown || this.keys.D.isDown || this.virtualMove.x > .25;
     this.player.move(left ? -1 : right ? 1 : 0);
     this.enemies.forEach((enemy, i) => {
       if (enemy.active) enemy.setFlipX(enemy.x > this.player.x);
@@ -74,21 +81,49 @@ export class LangLaScene extends Phaser.Scene {
     this.events.emit("character", config);
   }
 
+  applyProfile(profile) {
+    this.profile = profile;
+    const config = characters.find(character => character.name === profile.character?.name);
+    if (config && this.player?.config.name !== config.name) this.switchCharacter(config);
+  }
+
   setTarget(enemy) { if (enemy?.active) { this.target = enemy; this.events.emit("enemyHp", enemy); } }
+  setGameplayEnabled(enabled) {
+    this.gameplayEnabled = enabled;
+    if (!enabled) this.setVirtualMove(0, 0);
+  }
+
+  setVirtualMove(x, y) {
+    this.virtualMove = { x, y };
+    if (y < -.45) this.player?.jump();
+  }
+
+  startCooldown(skill, duration) {
+    if (this.cooldowns[skill] > this.time.now) return false;
+    this.cooldowns[skill] = this.time.now + duration;
+    this.events.emit("cooldown", { skill, duration });
+    return true;
+  }
+
   nextTarget() {
-    const alive = this.enemies.filter(e => e.active);
+    const alive = this.enemies
+      .filter(enemy => enemy.active)
+      .sort((a, b) => Math.abs(a.x - this.player.x) - Math.abs(b.x - this.player.x));
     if (!alive.length) return;
     const index = Math.max(-1, alive.indexOf(this.target));
     this.setTarget(alive[(index + 1) % alive.length]);
   }
 
   punch() {
+    if (!this.gameplayEnabled) return;
     if (!this.target?.active) return;
     const target = this.target;
     const distance = Math.abs(target.x - this.player.x);
     if (distance > 150) return this.notice("Mục tiêu quá xa để đấm");
+    if (this.cooldowns.punch > this.time.now) return;
     const hit = () => {
       if (!this.player.attackAnimation()) return;
+      if (!this.startCooldown("punch", this.player.config.punchCooldown)) return;
       this.player.setFlipX(target.x < this.player.x);
       this.time.delayedCall(180, () => this.hitEnemy(target, this.player.config.punch));
     };
@@ -99,11 +134,14 @@ export class LangLaScene extends Phaser.Scene {
   }
 
   castSkill() {
+    if (!this.gameplayEnabled) return;
     if (!this.target?.active) return;
     const target = this.target;
     const distance = Math.abs(target.x - this.player.x);
     if (distance < 40 || distance > 300) return this.notice(distance < 40 ? "Lùi ra để dùng chưởng" : "Mục tiêu ngoài tầm chưởng");
+    if (this.cooldowns.blast > this.time.now) return;
     if (!this.player.skillAnimation()) return;
+    if (!this.startCooldown("blast", this.player.config.skillCooldown)) return;
     this.player.setFlipX(target.x < this.player.x);
     const direction = target.x < this.player.x ? -1 : 1;
     const orb = this.add.image(
@@ -130,11 +168,16 @@ export class LangLaScene extends Phaser.Scene {
   hitEnemy(enemy, amount) {
     if (!enemy?.active) return;
     const critical = Math.random() < .1;
-    const damage = critical ? Math.round(amount * 1.5) : amount;
+    const skillKey = amount === this.player.config.punch ? "punch" : "blast";
+    const level = this.profile?.skills?.[skillKey] ?? 1;
+    const step = skillKey === "punch" ? 20 : { "HYU-GA": 50, "SEN-JIN": 60, "UCHY-HA": 80 }[this.player.config.clan];
+    const leveledAmount = amount + (level - 1) * step;
+    const damage = critical ? Math.round(leveledAmount * 1.5) : leveledAmount;
     const text = this.add.text(enemy.x, enemy.y - 100, `${critical ? "CRIT " : ""}-${damage}`, { font: "800 20px Arial", color: critical ? "#ff6b39" : "#ffffff", stroke: "#151515", strokeThickness: 4 }).setOrigin(.5).setDepth(10);
     this.tweens.add({ targets: text, y: text.y - 55, alpha: 0, duration: 750, onComplete: () => text.destroy() });
     const dead = enemy.damage(damage);
     this.events.emit("enemyHp", enemy);
+    this.events.emit("hit", { enemy, damage });
     if (dead) this.killEnemy(enemy);
   }
 
@@ -144,6 +187,7 @@ export class LangLaScene extends Phaser.Scene {
       this.tweens.add({ targets: smoke, x: smoke.x + Phaser.Math.Between(-65, 65), y: smoke.y + Phaser.Math.Between(-70, 15), alpha: 0, scale: 2, duration: 700, onComplete: () => smoke.destroy() });
     }
     enemy.disableBody(true, true);
+    this.events.emit("kill");
     this.time.delayedCall(6000, () => enemy.respawn());
     this.nextTarget();
   }

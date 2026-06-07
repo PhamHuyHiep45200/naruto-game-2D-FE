@@ -21,3 +21,12 @@ export const characters = [
   { key: "sakura", name: "Sakur Haron", clan: "HYU-GA", punch: 80, skillDamage: 200, skill: "Chưởng Đầu Hổ", skillImage: "chuong-ho", speed: 255, frameWidth: 340, frameHeight: 327, scale: 0.28, frames: frames.sakura },
   { key: "neyji", name: "NeyJiii", clan: "HYU-GA", punch: 80, skillDamage: 200, skill: "Chưởng Đầu Hổ", skillImage: "chuong-ho", speed: 265, frameWidth: 400, frameHeight: 396, scale: 0.25, frames: frames.neyji },
 ];
+
+characters.forEach(character => {
+  const [punchCooldown, skillCooldown] = {
+    "HYU-GA": [250, 1500],
+    "SEN-JIN": [300, 2000],
+    "UCHY-HA": [350, 2500],
+  }[character.clan];
+  Object.assign(character, { punchCooldown, skillCooldown });
+});

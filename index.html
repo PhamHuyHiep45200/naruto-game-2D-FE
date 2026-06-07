@@ -7,36 +7,68 @@
   </head>
   <body>
     <div id="game"></div>
-    <div id="ui">
-      <section class="hero-panel">
-        <img id="hero-avatar" alt="Nhân vật" />
-        <div>
-          <strong id="hero-name"></strong>
-          <span id="hero-clan"></span>
-          <div class="bar"><i id="hero-hp"></i><b id="hero-hp-text"></b></div>
+    <main id="ui">
+      <section id="auth-screen" class="screen auth-screen">
+        <div class="auth-particles" aria-hidden="true"></div>
+        <div class="auth-card">
+          <div class="brand"><span class="brand-mark">忍</span><small>SHINOBI MERIDIAN</small><h1>Hành trình bắt đầu</h1><p>Rèn luyện Chakra · Bảo vệ Làng Lá</p></div>
+          <form id="login-form" class="auth-form active">
+            <input name="username" minlength="3" required placeholder="Tên tài khoản" autocomplete="username">
+            <input name="password" minlength="6" required type="password" placeholder="Mật khẩu" autocomplete="current-password">
+            <button type="submit">Đăng nhập</button>
+            <button type="button" class="auth-switch link" data-form="register">Đăng ký tài khoản mới</button>
+          </form>
+          <form id="register-form" class="auth-form">
+            <input name="username" minlength="3" maxlength="24" required placeholder="Tên tài khoản" autocomplete="username">
+            <input name="email" required type="email" placeholder="Email" autocomplete="email">
+            <input name="password" minlength="6" required type="password" placeholder="Mật khẩu" autocomplete="new-password">
+            <input name="confirmPassword" minlength="6" required type="password" placeholder="Xác nhận mật khẩu" autocomplete="new-password">
+            <button type="submit">Đăng ký</button>
+            <button type="button" class="auth-switch link" data-form="login">Quay lại đăng nhập</button>
+          </form>
         </div>
       </section>
-      <section class="enemy-panel">
-        <span>Mục tiêu: Mộc Nhân</span>
-        <div class="bar enemy"><i id="enemy-hp"></i><b id="enemy-hp-text"></b></div>
+
+      <section id="character-screen" class="screen character-screen">
+        <header><span class="section-kicker">HỒ SƠ TÂN BINH</span><small>CHỌN GIA TỘC VÀ NHÂN VẬT</small><h1>Shinobi của bạn</h1><p>Mỗi gia tộc sở hữu nhịp chiến đấu và kỹ năng riêng.</p></header>
+        <div id="clan-cards"></div>
+        <button id="start-game" disabled>BẮT ĐẦU VÀO LÀNG</button>
       </section>
-      <aside class="character-picker">
-        <h2>Chọn ninja</h2>
-        <div id="character-buttons"></div>
-      </aside>
-      <div class="help">
-        <span>Di chuyển: WASD / ← →</span>
-        <span><kbd>Space</kbd> Đấm áp sát</span>
-        <span><kbd>E</kbd> Chưởng</span>
-        <span><kbd>Q</kbd> Đổi mục tiêu</span>
-      </div>
-      <div class="actions">
-        <button id="punch">ĐẤM</button>
-        <button id="skill">CHƯỞNG</button>
-        <button id="target">◎</button>
-      </div>
+
+      <section id="game-ui">
+        <section class="hero-panel">
+          <img id="hero-avatar" alt="Nhân vật">
+          <div>
+            <strong id="hero-name"></strong><span id="hero-clan"></span>
+            <div class="bar"><i id="hero-hp"></i><b>HP: 2500 / 2500</b></div>
+            <div class="bar mana"><i></i><b>Mana: 1200 / 1200</b></div>
+          </div>
+        </section>
+        <button id="menu-open" title="Bảng menu">☰</button>
+        <section class="enemy-panel"><small>MỤC TIÊU ĐANG KHÓA</small><span>Mộc Nhân</span><div class="bar enemy"><i id="enemy-hp"></i><b id="enemy-hp-text"></b></div></section>
+        <div class="mobile-controls">
+          <div id="joystick" class="joystick"><i></i></div>
+          <div class="skill-shortcuts">
+            <button id="punch" class="skill-slot active" data-skill="punch"><img id="punch-icon" alt="Đấm"><i></i><b class="cooldown-time"></b></button>
+            <button id="skill" class="skill-slot" data-skill="blast"><img id="blast-icon" alt="Chưởng"><i></i><b class="cooldown-time"></b></button>
+            <button class="skill-slot locked" disabled><span>III</span></button>
+            <button class="skill-slot locked" disabled><span>IV</span></button>
+          </div>
+          <div class="actions"><button id="target" aria-label="Đổi mục tiêu">◎</button><button id="action" aria-label="Dùng kỹ năng"><img src="/imgs/common/shuriken.png" alt=""></button></div>
+        </div>
+      </section>
+
+      <section id="system-modal" class="modal">
+        <div class="modal-card">
+          <button id="menu-close" class="close">×</button>
+          <nav><button class="tab-button active" data-tab="quest-tab">Nhiệm vụ</button><button class="tab-button" data-tab="skill-tab">Kỹ năng</button><button class="tab-button" data-tab="settings-tab">Cài đặt</button></nav>
+          <section id="quest-tab" class="tab-panel active"><small>NHIỆM VỤ HIỆN TẠI</small><h2>Bạo Loạn Thực Vật Biến Dị</h2><p>Tiêu diệt 10 Mộc Nhân tại bìa rừng.</p><div class="progress"><i id="quest-fill"></i></div><strong id="quest-progress">0 / 10</strong></section>
+          <section id="skill-tab" class="tab-panel"><p>Điểm Chakra tích lũy: <strong id="chakra-value">0</strong></p><div class="skill-row"><img id="modal-punch-icon" class="modal-skill-icon" alt="Đấm"><div><b>ĐẤM · Cấp <span id="punch-level">1</span></b><small>Thể thuật cận chiến</small></div><button id="punch-upgrade">Nâng cấp · <span id="punch-cost"></span></button></div><div class="skill-row"><img id="modal-blast-icon" class="modal-skill-icon" alt="Chưởng"><div><b>CHƯỞNG · Cấp <span id="blast-level">1</span></b><small>Năng lượng đặc trưng gia tộc</small></div><button id="blast-upgrade">Nâng cấp · <span id="blast-cost"></span></button></div></section>
+          <section id="settings-tab" class="tab-panel"><p>Tài khoản: <strong id="account-name"></strong></p><label class="setting">Âm thanh nền <input id="bgm-toggle" type="checkbox"><i></i></label><label class="setting">Hiệu ứng âm thanh <input id="sfx-toggle" type="checkbox"><i></i></label><button id="logout" class="danger">Đăng xuất</button></section>
+        </div>
+      </section>
       <div id="message"></div>
-    </div>
+    </main>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
