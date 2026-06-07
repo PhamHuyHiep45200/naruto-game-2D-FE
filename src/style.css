@@ -1,0 +1,45 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap");
+
+* { box-sizing: border-box; }
+html, body, #game { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: #0a1116; color: #fff; font-family: "Be Vietnam Pro", sans-serif; }
+canvas { display: block; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+.hero-panel, .enemy-panel, .character-picker, .help {
+  background: rgba(8, 16, 23, .82);
+  border: 1px solid rgba(255, 210, 79, .35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+  backdrop-filter: blur(8px);
+}
+.hero-panel { position: absolute; top: 16px; left: 16px; display: flex; gap: 10px; width: 300px; padding: 10px; border-radius: 18px; }
+.hero-panel img { width: 58px; height: 58px; object-fit: cover; border: 2px solid #ffd44f; border-radius: 50%; background: #18222b; }
+.hero-panel > div { flex: 1; }
+.hero-panel strong, .hero-panel span { display: block; font-size: 13px; }
+.hero-panel span { color: #ffd85e; font-size: 10px; margin: 3px 0 7px; }
+.bar { position: relative; height: 15px; overflow: hidden; border-radius: 10px; background: #202b31; }
+.bar i { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #a81520, #ff4b44); transition: width .25s; }
+.bar b { position: absolute; inset: 0; text-align: center; font-size: 9px; line-height: 15px; }
+.enemy-panel { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: 260px; padding: 8px 12px; border-radius: 12px; text-align: center; font-size: 11px; }
+.enemy-panel .bar { margin-top: 5px; }
+.enemy-panel .bar i { background: linear-gradient(90deg, #355f27, #84d742); }
+.character-picker { position: absolute; top: 16px; right: 16px; width: 230px; padding: 10px; border-radius: 14px; pointer-events: auto; }
+.character-picker h2 { margin: 0 0 8px; color: #ffd85e; font-size: 13px; text-transform: uppercase; }
+#character-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#character-buttons button { overflow: hidden; padding: 0; border: 1px solid #5e6970; border-radius: 9px; background: #19242b; cursor: pointer; aspect-ratio: 1; }
+#character-buttons button.active { border-color: #ffd44f; box-shadow: 0 0 12px #ffd44f; }
+#character-buttons img { width: 100%; height: 100%; object-fit: cover; }
+.help { position: absolute; bottom: 18px; left: 50%; display: flex; gap: 13px; transform: translateX(-50%); padding: 8px 12px; border-radius: 12px; font-size: 10px; }
+kbd { padding: 2px 5px; border-radius: 4px; background: #ffd44f; color: #151b20; }
+.actions { position: absolute; right: 22px; bottom: 24px; display: flex; align-items: end; gap: 9px; pointer-events: auto; }
+.actions button { width: 68px; height: 68px; border: 2px solid #ffd44f; border-radius: 50%; background: rgba(16, 24, 30, .84); color: #fff; font: 800 10px inherit; cursor: pointer; box-shadow: 0 0 16px rgba(255, 212, 79, .35); }
+.actions #target { width: 46px; height: 46px; font-size: 25px; }
+.actions button:active { transform: scale(.92); background: #8b321d; }
+#message { position: absolute; top: 110px; left: 50%; transform: translateX(-50%); color: #fff4b4; font-weight: 800; text-shadow: 0 2px 5px #000; opacity: 0; transition: opacity .2s; }
+#message.show { opacity: 1; }
+@media (max-width: 760px) {
+  .character-picker { top: auto; right: 8px; bottom: 104px; width: 210px; }
+  .hero-panel { top: 8px; left: 8px; transform: scale(.82); transform-origin: top left; }
+  .enemy-panel { top: 8px; width: 190px; }
+  .help { display: none; }
+  .actions { right: 12px; bottom: 18px; }
+}

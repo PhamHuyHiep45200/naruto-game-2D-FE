@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shinobi: Làng Lá</title>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="ui">
+      <section class="hero-panel">
+        <img id="hero-avatar" alt="Nhân vật" />
+        <div>
+          <strong id="hero-name"></strong>
+          <span id="hero-clan"></span>
+          <div class="bar"><i id="hero-hp"></i><b id="hero-hp-text"></b></div>
+        </div>
+      </section>
+      <section class="enemy-panel">
+        <span>Mục tiêu: Mộc Nhân</span>
+        <div class="bar enemy"><i id="enemy-hp"></i><b id="enemy-hp-text"></b></div>
+      </section>
+      <aside class="character-picker">
+        <h2>Chọn ninja</h2>
+        <div id="character-buttons"></div>
+      </aside>
+      <div class="help">
+        <span>Di chuyển: WASD / ← →</span>
+        <span><kbd>Space</kbd> Đấm áp sát</span>
+        <span><kbd>E</kbd> Chưởng</span>
+        <span><kbd>Q</kbd> Đổi mục tiêu</span>
+      </div>
+      <div class="actions">
+        <button id="punch">ĐẤM</button>
+        <button id="skill">CHƯỞNG</button>
+        <button id="target">◎</button>
+      </div>
+      <div id="message"></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
