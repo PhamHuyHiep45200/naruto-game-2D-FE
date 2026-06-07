@@ -9,7 +9,7 @@ export class MocNhan extends Phaser.Physics.Arcade.Sprite {
     this.hp = this.maxHp;
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setScale(.27).setDepth(4).setInteractive({ useHandCursor: true });
+    this.setScale(.2).setDepth(4).setInteractive({ useHandCursor: true });
     this.body.setImmovable(true).setSize(170, 330).setOffset(180, 150);
     if (!scene.anims.exists("moc-idle")) {
       scene.anims.create({ key: "moc-idle", frames: scene.anims.generateFrameNumbers("moc-nhan", { frames: [0, 1] }), frameRate: 3, repeat: -1 });

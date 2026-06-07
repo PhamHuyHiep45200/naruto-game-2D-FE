@@ -7,9 +7,11 @@ import { Itachi } from "../nhan-vat/Itachi";
 import { Obito } from "../nhan-vat/Obito";
 import { Sakura } from "../nhan-vat/Sakura";
 import { Neyji } from "../nhan-vat/Neyji";
+import { Sasuke } from "../nhan-vat/Sasuke";
+import { Hinata } from "../nhan-vat/Hinata";
 import { MocNhan } from "../quai-vat/MocNhan";
 
-const classes = { naruto: Naruto, "naruto-ol": Naruto, minato: Minato, kakashi: Kakashi, itachi: Itachi, obito: Obito, sakura: Sakura, "neyji-pisk": Neyji };
+const classes = { naruto: Naruto, minato: Minato, kakashi: Kakashi, sasuke: Sasuke, itachi: Itachi, obito: Obito, hinata: Hinata, sakura: Sakura, neyji: Neyji };
 
 export class LangLaScene extends Phaser.Scene {
   constructor() { super("lang-la"); }
@@ -19,7 +21,7 @@ export class LangLaScene extends Phaser.Scene {
     this.load.image("rasengan", "/imgs/chuong/rasengan.png");
     this.load.image("chuong-rong", "/imgs/chuong/chuong-rong.png");
     this.load.image("chuong-ho", "/imgs/chuong/chuong-ho.png");
-    characters.forEach(c => this.load.spritesheet(c.key, `/imgs/nhan-vat/${c.key}.png`, { frameWidth: c.frameWidth, frameHeight: c.frameHeight }));
+    characters.forEach(c => this.load.spritesheet(c.key, `/imgs/nhan-vat/${c.spriteKey ?? c.key}.png`, { frameWidth: c.frameWidth, frameHeight: c.frameHeight }));
     this.load.spritesheet("moc-nhan", "/imgs/quai-vat/moc-nhan.png", { frameWidth: 530, frameHeight: 512 });
   }
 
@@ -33,6 +35,8 @@ export class LangLaScene extends Phaser.Scene {
     this.input.keyboard.on("keydown-SPACE", () => this.punch());
     this.input.keyboard.on("keydown-E", () => this.castSkill());
     this.input.keyboard.on("keydown-Q", () => this.nextTarget());
+    this.input.keyboard.on("keydown-W", () => this.player?.jump());
+    this.input.keyboard.on("keydown-UP", () => this.player?.jump());
     this.enemies = [new MocNhan(this, 900, 570, 0), new MocNhan(this, 1330, 570, 1), new MocNhan(this, 1740, 570, 2)];
     this.enemies.forEach(enemy => enemy.on("pointerdown", () => this.setTarget(enemy)));
     this.targetArrow = this.add.triangle(0, 0, 0, 0, 22, 0, 11, 18, 0xff3737).setDepth(9);
@@ -53,7 +57,11 @@ export class LangLaScene extends Phaser.Scene {
         enemy.x += Math.sin(this.time.now / 700 + i) * .25;
       }
     });
-    if (this.target?.active) this.targetArrow.setVisible(true).setPosition(this.target.x, this.target.y - 105);
+    if (this.target?.active) {
+      this.targetArrow
+        .setVisible(true)
+        .setPosition(this.target.x, this.target.y - this.target.displayHeight / 2 - 16);
+    }
     else this.nextTarget();
   }
 
@@ -76,27 +84,47 @@ export class LangLaScene extends Phaser.Scene {
 
   punch() {
     if (!this.target?.active) return;
-    const distance = Math.abs(this.target.x - this.player.x);
+    const target = this.target;
+    const distance = Math.abs(target.x - this.player.x);
     if (distance > 150) return this.notice("Mục tiêu quá xa để đấm");
     const hit = () => {
-      this.player.attackAnimation();
-      this.player.setFlipX(this.target.x < this.player.x);
-      this.time.delayedCall(180, () => this.hitEnemy(this.target, this.player.config.punch));
+      if (!this.player.attackAnimation()) return;
+      this.player.setFlipX(target.x < this.player.x);
+      this.time.delayedCall(180, () => this.hitEnemy(target, this.player.config.punch));
     };
     if (distance > 40) {
-      const destination = this.target.x + (this.player.x < this.target.x ? -38 : 38);
+      const destination = target.x + (this.player.x < target.x ? -38 : 38);
       this.tweens.add({ targets: this.player, x: destination, duration: 140, ease: "Power2", onComplete: hit });
     } else hit();
   }
 
   castSkill() {
     if (!this.target?.active) return;
-    const distance = Math.abs(this.target.x - this.player.x);
+    const target = this.target;
+    const distance = Math.abs(target.x - this.player.x);
     if (distance < 40 || distance > 300) return this.notice(distance < 40 ? "Lùi ra để dùng chưởng" : "Mục tiêu ngoài tầm chưởng");
-    this.player.skillAnimation();
-    this.player.setFlipX(this.target.x < this.player.x);
-    const orb = this.add.image(this.player.x, this.player.y - 40, this.player.config.skillImage).setDepth(7).setScale(.18);
-    this.tweens.add({ targets: orb, x: this.target.x, y: this.target.y - 35, scale: .28, duration: 360, onComplete: () => { orb.destroy(); this.hitEnemy(this.target, this.player.config.skillDamage); } });
+    if (!this.player.skillAnimation()) return;
+    this.player.setFlipX(target.x < this.player.x);
+    const direction = target.x < this.player.x ? -1 : 1;
+    const orb = this.add.image(
+      this.player.body.center.x,
+      this.player.body.center.y,
+      this.player.config.skillImage,
+    )
+      .setDepth(7)
+      .setDisplaySize(84, 84)
+      .setFlipX(direction < 0);
+    this.tweens.add({
+      targets: orb,
+      x: target.body.center.x,
+      y: target.body.center.y,
+      duration: 360,
+      ease: "Linear",
+      onComplete: () => {
+        orb.destroy();
+        this.hitEnemy(target, this.player.config.skillDamage);
+      },
+    });
   }
 
   hitEnemy(enemy, amount) {

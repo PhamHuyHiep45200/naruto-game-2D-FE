@@ -8,25 +8,26 @@ export function bindUI(game) {
   const enemyHpText = document.querySelector("#enemy-hp-text");
   const message = document.querySelector("#message");
 
-  const renderCharacters = characters => {
-    characters.forEach(character => {
-      const button = document.createElement("button");
-      button.title = character.name;
-      button.innerHTML = `<img src="/imgs/avatar/hud/${character.key === "naruto-ol" ? "naruto" : character.key === "neyji-pisk" ? "neyji" : character.key}.png" alt="${character.name}">`;
-      button.onclick = () => scene.switchCharacter(character);
-      button.dataset.key = character.key;
-      buttons.append(button);
-    });
-    scene.events.emit("character", characters[0]);
-  };
-  renderCharacters(scene.characterList);
-  scene.events.on("character", character => {
-    const avatarKey = character.key === "naruto-ol" ? "naruto" : character.key === "neyji-pisk" ? "neyji" : character.key;
-    avatar.src = `/imgs/avatar/hud/${avatarKey}.png`;
+  const updateCharacter = character => {
+    avatar.src = `/imgs/avatar/hud/${character.key}.png`;
     name.textContent = character.name;
     clan.textContent = `${character.clan} · ${character.skill}`;
-    document.querySelectorAll("#character-buttons button").forEach(b => b.classList.toggle("active", b.dataset.key === character.key));
+    document.querySelectorAll("#character-buttons button").forEach(button => {
+      button.classList.toggle("active", button.dataset.key === character.key);
+    });
+  };
+  scene.events.on("character", updateCharacter);
+
+  scene.characterList.forEach(character => {
+    const button = document.createElement("button");
+    button.title = character.name;
+    button.innerHTML = `<img src="/imgs/avatar/hud/${character.key}.png" alt="${character.name}">`;
+    button.onclick = () => scene.switchCharacter(character);
+    button.dataset.key = character.key;
+    buttons.append(button);
   });
+  updateCharacter(scene.characterList[0]);
+
   scene.events.on("enemyHp", enemy => {
     enemyHp.style.width = `${enemy.hp / enemy.maxHp * 100}%`;
     enemyHpText.textContent = `${enemy.hp} / ${enemy.maxHp}`;

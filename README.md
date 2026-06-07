@@ -11,7 +11,8 @@ npm run dev
 
 ## Điều khiển
 
-- `A/D`, `WASD` hoặc phím mũi tên: di chuyển.
+- `A/D` hoặc phím trái/phải: di chuyển.
+- `W` hoặc phím lên: nhảy.
 - `Space`: đấm; tự áp sát khi mục tiêu cách 40-150px.
 - `E`: dùng chưởng trong tầm 40-300px.
 - `Q`: đổi Mộc Nhân đang khóa.

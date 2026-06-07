@@ -4,6 +4,8 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, config) {
     super(scene, 260, 570, config.key, 0);
     this.config = config;
+    this.isJumping = false;
+    this.isActing = false;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setScale(config.scale ?? 0.31).setDepth(5).setCollideWorldBounds(true);
@@ -13,25 +15,71 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
 
   createAnimations() {
     const key = this.config.key;
+    const frameNumbers = ([start, end]) => Array.from(
+      { length: end - start + 1 },
+      (_, index) => start - 1 + index,
+    );
     if (!this.scene.anims.exists(`${key}-idle`)) {
-      this.scene.anims.create({ key: `${key}-idle`, frames: this.scene.anims.generateFrameNumbers(key, { frames: [0, 1, 2, 3] }), frameRate: 4, repeat: -1 });
-      this.scene.anims.create({ key: `${key}-run`, frames: this.scene.anims.generateFrameNumbers(key, { frames: [4, 5, 6, 7, 8] }), frameRate: 11, repeat: -1 });
-      this.scene.anims.create({ key: `${key}-attack`, frames: this.scene.anims.generateFrameNumbers(key, { frames: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19] }), frameRate: 18 });
-      this.scene.anims.create({ key: `${key}-skill`, frames: this.scene.anims.generateFrameNumbers(key, { frames: [20, 21, 22] }), frameRate: 10 });
+      const animation = (name, frameRate, repeat = 0) => this.scene.anims.create({
+        key: `${key}-${name}`,
+        frames: this.scene.anims.generateFrameNumbers(key, { frames: frameNumbers(this.config.frames[name]) }),
+        frameRate,
+        repeat,
+      });
+      animation("idle", 4, -1);
+      animation("run", 11, -1);
+      animation("jump", 6);
+      animation("attack", 18);
+      animation("skill", 10);
     }
     this.play(`${key}-idle`);
   }
 
   move(direction) {
+    if (this.isJumping) return;
+    if (this.isActing) {
+      this.setVelocityX(0);
+      return;
+    }
     this.setVelocityX(direction * this.config.speed);
     if (direction !== 0) {
       this.setFlipX(direction < 0);
-      if (!this.anims.currentAnim?.key.endsWith("-attack")) this.play(`${this.config.key}-run`, true);
-    } else if (!this.anims.currentAnim?.key.endsWith("-attack") && !this.anims.currentAnim?.key.endsWith("-skill")) {
+      this.play(`${this.config.key}-run`, true);
+    } else {
       this.play(`${this.config.key}-idle`, true);
     }
   }
 
-  attackAnimation() { this.play(`${this.config.key}-attack`, true); }
-  skillAnimation() { this.play(`${this.config.key}-skill`, true); }
+  playAction(name) {
+    if (this.isJumping || this.isActing) return false;
+    const animationKey = `${this.config.key}-${name}`;
+    this.isActing = true;
+    this.setVelocityX(0);
+    this.play(animationKey, true);
+    this.once(`animationcomplete-${animationKey}`, () => {
+      this.isActing = false;
+      this.play(`${this.config.key}-idle`, true);
+    });
+    return true;
+  }
+
+  attackAnimation() { return this.playAction("attack"); }
+  skillAnimation() { return this.playAction("skill"); }
+
+  jump() {
+    if (this.isJumping) return;
+    this.isJumping = true;
+    this.play(`${this.config.key}-jump`, true);
+    this.scene.tweens.add({
+      targets: this,
+      y: this.y - 115,
+      duration: 440,
+      ease: "Sine.Out",
+      yoyo: true,
+      onComplete: () => {
+        this.isJumping = false;
+        this.play(`${this.config.key}-idle`, true);
+      },
+    });
+  }
 }
