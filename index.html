@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Shinobi: Làng Lá</title>
+    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <div id="game"></div>
@@ -46,15 +47,112 @@
 
       <section id="game-ui">
         <section class="hero-panel">
+          <!-- Backing Plate (provides dark background for text and bars) -->
+          <div class="hud-backing-plate"></div>
+
+          <!-- Raw HUD Frame Asset -->
+          <img class="hud-frame-img" src="/imgs/lang/hud-frame.png" alt="" aria-hidden="true">
+
+          <!-- Character Portrait (Placed behind the frame overlay borders) -->
           <img id="hero-avatar" alt="Nhân vật">
-          <div>
-            <strong id="hero-name"></strong><span id="hero-clan"></span>
-            <div class="bar"><i id="hero-hp"></i><b>HP: 2500 / 2500</b></div>
-            <div class="bar mana"><i></i><b>Mana: 1200 / 1200</b></div>
+
+          <!-- Swirl Clan Badge (Overlay inside the bottom-left purple circle) -->
+          <div class="hud-clan-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10c0-2.5-1-4.8-2.6-6.4C17.2 3.4 14.8 2.5 12 3c-4.4.8-7.5 4.9-6.7 9.3.6 3.4 3.4 6.2 6.8 6.7 3.4.5 6.4-1.3 7.5-4.4.8-2.2-.1-4.6-2.1-5.6-1.6-.8-3.7-.3-4.7 1.2s-.3 3.7 1.2 4.7" stroke-linecap="round"/>
+            </svg>
+          </div>
+
+          <!-- Level Text Overlay (Centered on the bottom gold level circle) -->
+          <div class="hud-level-text">60</div>
+
+          <!-- Name and Subtitle Text area -->
+          <div class="hud-hero-info">
+            <strong id="hero-name"></strong>
+            <span id="hero-clan"></span>
+          </div>
+
+          <!-- HP Icon Overlay (inside gold diamond) -->
+          <div class="hud-icon-overlay hp-icon-overlay">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+
+          <!-- HP Label Text -->
+          <div class="hud-label-text hp-label">HP</div>
+
+          <!-- HP Bar Fill (Behind the frame outline slots) -->
+          <div class="hud-bar-fill-container hp-fill-container">
+            <div class="hud-bar-skewed"><i id="hero-hp"></i></div>
+          </div>
+          <!-- HP Value Text (Above the frame overlay) -->
+          <b class="hud-value-text hp-value">2500 / 2500</b>
+
+          <!-- Mana Icon Overlay (inside gold diamond) -->
+          <div class="hud-icon-overlay mana-icon-overlay">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10c0-2.5-1-4.8-2.6-6.4C17.2 3.4 14.8 2.5 12 3c-4.4.8-7.5 4.9-6.7 9.3.6 3.4 3.4 6.2 6.8 6.7 3.4.5 6.4-1.3 7.5-4.4.8-2.2-.1-4.6-2.1-5.6-1.6-.8-3.7-.3-4.7 1.2s-.3 3.7 1.2 4.7" stroke-linecap="round"/></svg>
+          </div>
+
+          <!-- Mana Label Text -->
+          <div class="hud-label-text mana-label">Mana</div>
+
+          <!-- Mana Bar Fill (Behind the frame outline slots) -->
+          <div class="hud-bar-fill-container mana-fill-container">
+            <div class="hud-bar-skewed"><i></i></div>
+          </div>
+          <!-- Mana Value Text (Above the frame overlay) -->
+          <b class="hud-value-text mana-value">1200 / 1200</b>
+        </section>
+        <section class="enemy-panel">
+          <!-- Left side: Leaf Badge -->
+          <div class="enemy-badge-wrapper">
+            <div class="enemy-badge-glow"></div>
+            <div class="enemy-badge-circle">
+              <!-- Leaf Icon inside dark green background -->
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 8C8 10 5.9 16.9 5.9 16.9S3 14 3 9C3 4 9 3 9 3S13 5 17 8M17 8C21 10 22 17 22 17S19 16 16.5 13C14 10 17 8 17 8Z"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Right side: Info Panel -->
+          <div class="enemy-info-wrapper">
+            <!-- SVG Background for hexagonal notched panel -->
+            <svg class="enemy-bg-svg" viewBox="0 0 250 64" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="enemy-bg-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#14110b" stop-opacity="0.9" />
+                  <stop offset="100%" stop-color="#0a0502" stop-opacity="0.95" />
+                </linearGradient>
+                <linearGradient id="enemy-border-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#ffd557" />
+                  <stop offset="100%" stop-color="#b86b14" />
+                </linearGradient>
+              </defs>
+              <path d="M 12 0 L 238 0 L 250 12 L 250 52 L 238 64 L 12 64 L 0 52 L 0 12 Z" fill="url(#enemy-bg-grad)" />
+              <path d="M 12 0 L 238 0 L 250 12 L 250 52 L 238 64 L 12 64 L 0 52 L 0 12 Z" fill="none" stroke="url(#enemy-border-grad)" stroke-width="1.5" />
+            </svg>
+
+            <div class="enemy-text-info">
+              <small>MỤC TIÊU ĐANG KHÓA</small>
+              <span>Mộc Nhân</span>
+            </div>
+            
+            <div class="enemy-hp-container">
+              <div class="enemy-hp-bar">
+                <i id="enemy-hp"></i>
+                <b id="enemy-hp-text"></b>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating leaf particles -->
+          <div class="leaf-particles" aria-hidden="true">
+            <div class="leaf-particle" style="--x: -10px; --y: 20px; --s: 0.8; --d: 0s;">🍃</div>
+            <div class="leaf-particle" style="--x: 260px; --y: 40px; --s: 1.1; --d: 1.2s;">🍃</div>
+            <div class="leaf-particle" style="--x: 180px; --y: -8px; --s: 0.9; --d: 0.6s;">🍃</div>
+            <div class="leaf-particle" style="--x: 40px; --y: 68px; --s: 1.0; --d: 1.8s;">🍃</div>
           </div>
         </section>
-        <button id="menu-open" title="Bảng menu" aria-label="Mở bảng menu"><i data-lucide="menu"></i></button>
-        <section class="enemy-panel"><small>MỤC TIÊU ĐANG KHÓA</small><span>Mộc Nhân</span><div class="bar enemy"><i id="enemy-hp"></i><b id="enemy-hp-text"></b></div></section>
         <div class="mobile-controls">
           <div id="joystick" class="joystick"><i></i></div>
           <div class="skill-shortcuts">
@@ -63,17 +161,96 @@
             <button class="skill-slot locked" disabled aria-label="Kỹ năng III đang khóa"><i data-lucide="lock-keyhole"></i><span>III</span></button>
             <button class="skill-slot locked" disabled aria-label="Kỹ năng IV đang khóa"><i data-lucide="lock-keyhole"></i><span>IV</span></button>
           </div>
-          <div class="actions"><button id="target" aria-label="Đổi mục tiêu"><i data-lucide="scan-search"></i></button><button id="action" aria-label="Dùng kỹ năng"><img src="/imgs/common/shuriken.png" alt=""></button></div>
+          <div class="actions">
+            <button id="target" aria-label="Đổi mục tiêu">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="6"></circle>
+                <circle cx="12" cy="12" r="2" fill="currentColor"></circle>
+              </svg>
+            </button>
+            <button id="action" aria-label="Dùng kỹ năng"><img src="/imgs/common/shuriken.png" alt=""></button>
+          </div>
         </div>
       </section>
 
       <section id="system-modal" class="modal">
         <div class="modal-card">
+          <!-- Wooden/metallic close button -->
           <button id="menu-close" class="close" aria-label="Đóng"><i data-lucide="x"></i></button>
-          <nav><button class="tab-button active" data-tab="quest-tab"><i data-lucide="scroll-text"></i><span>Nhiệm vụ</span></button><button class="tab-button" data-tab="skill-tab"><i data-lucide="sparkles"></i><span>Kỹ năng</span></button><button class="tab-button" data-tab="settings-tab"><i data-lucide="sliders-horizontal"></i><span>Cài đặt</span></button></nav>
-          <section id="quest-tab" class="tab-panel active"><small><i data-lucide="map-pinned"></i>NHIỆM VỤ HIỆN TẠI</small><h2>Bạo Loạn Thực Vật Biến Dị</h2><p>Tiêu diệt 10 Mộc Nhân tại bìa rừng.</p><div class="progress"><i id="quest-fill"></i></div><strong id="quest-progress">0 / 10</strong></section>
-          <section id="skill-tab" class="tab-panel"><p class="chakra-line"><i data-lucide="zap"></i>Điểm Chakra tích lũy: <strong id="chakra-value">0</strong></p><div class="skill-row"><img id="modal-punch-icon" class="modal-skill-icon" alt="Đấm"><div><b>ĐẤM · Cấp <span id="punch-level">1</span></b><small>Thể thuật cận chiến</small></div><button id="punch-upgrade"><i data-lucide="circle-arrow-up"></i><span>Nâng cấp · <span id="punch-cost"></span></span></button></div><div class="skill-row"><img id="modal-blast-icon" class="modal-skill-icon" alt="Chưởng"><div><b>CHƯỞNG · Cấp <span id="blast-level">1</span></b><small>Năng lượng đặc trưng gia tộc</small></div><button id="blast-upgrade"><i data-lucide="circle-arrow-up"></i><span>Nâng cấp · <span id="blast-cost"></span></span></button></div></section>
-          <section id="settings-tab" class="tab-panel"><p class="account-line"><i data-lucide="user-round"></i>Tài khoản: <strong id="account-name"></strong></p><label class="setting"><span><i data-lucide="music"></i>Âm thanh nền</span><input id="bgm-toggle" type="checkbox"><i></i></label><label class="setting"><span><i data-lucide="volume-2"></i>Hiệu ứng âm thanh</span><input id="sfx-toggle" type="checkbox"><i></i></label><button id="logout" class="danger"><i data-lucide="log-out"></i><span>Đăng xuất</span></button></section>
+          
+          <!-- Tabs positioned above the scroll -->
+          <nav class="scroll-tabs">
+            <button class="tab-button active" data-tab="quest-tab"><i data-lucide="scroll-text"></i><span>Nhiệm vụ</span></button>
+            <button class="tab-button" data-tab="skill-tab"><i data-lucide="sparkles"></i><span>Chiêu thức</span></button>
+            <button class="tab-button" data-tab="settings-tab"><i data-lucide="sliders-horizontal"></i><span>Cài đặt</span></button>
+          </nav>
+
+          <!-- Scroll Container -->
+          <div class="scroll-container">
+            <!-- Left Roller -->
+            <div class="scroll-roller roller-left">
+              <div class="roller-cap top-cap"></div>
+              <div class="roller-shaft"></div>
+              <div class="roller-cap bottom-cap"></div>
+            </div>
+
+            <!-- Scroll Paper Body -->
+            <div class="scroll-body">
+              <!-- Quest Panel -->
+              <section id="quest-tab" class="tab-panel active">
+                <small><i data-lucide="map-pinned"></i>NHIỆM VỤ HIỆN TẠI</small>
+                <h2>Bạo Loạn Thực Vật Biến Dị</h2>
+                <p>Tiêu diệt 10 Mộc Nhân tại bìa rừng.</p>
+                <div class="progress"><i id="quest-fill"></i></div>
+                <strong id="quest-progress">0 / 10</strong>
+              </section>
+
+              <!-- Skill Upgrade Panel -->
+              <section id="skill-tab" class="tab-panel">
+                <p class="chakra-line"><i data-lucide="zap"></i>Điểm Chakra tích lũy: <strong id="chakra-value">0</strong></p>
+                <div class="skill-row">
+                  <img id="modal-punch-icon" class="modal-skill-icon" alt="Đấm">
+                  <div class="skill-info">
+                    <b>ĐẤM · Cấp <span id="punch-level">1</span></b>
+                    <small>Thể thuật cận chiến</small>
+                  </div>
+                  <button id="punch-upgrade"><i data-lucide="circle-arrow-up"></i><span>Nâng cấp · <span id="punch-cost"></span></span></button>
+                </div>
+                <div class="skill-row">
+                  <img id="modal-blast-icon" class="modal-skill-icon" alt="Chưởng">
+                  <div class="skill-info">
+                    <b>CHƯỞNG · Cấp <span id="blast-level">1</span></b>
+                    <small>Năng lượng đặc trưng gia tộc</small>
+                  </div>
+                  <button id="blast-upgrade"><i data-lucide="circle-arrow-up"></i><span>Nâng cấp · <span id="blast-cost"></span></span></button>
+                </div>
+              </section>
+
+              <!-- Settings Panel -->
+              <section id="settings-tab" class="tab-panel">
+                <p class="account-line"><i data-lucide="user-round"></i>Tài khoản: <strong id="account-name"></strong></p>
+                <label class="setting">
+                  <span><i data-lucide="music"></i>Âm thanh nền</span>
+                  <input id="bgm-toggle" type="checkbox">
+                  <i></i>
+                </label>
+                <label class="setting">
+                  <span><i data-lucide="volume-2"></i>Hiệu ứng âm thanh</span>
+                  <input id="sfx-toggle" type="checkbox">
+                  <i></i>
+                </label>
+                <button id="logout" class="danger"><i data-lucide="log-out"></i><span>Đăng xuất</span></button>
+              </section>
+            </div>
+
+            <!-- Right Roller -->
+            <div class="scroll-roller roller-right">
+              <div class="roller-cap top-cap"></div>
+              <div class="roller-shaft"></div>
+              <div class="roller-cap bottom-cap"></div>
+            </div>
+          </div>
         </div>
       </section>
       <div id="message"></div>
