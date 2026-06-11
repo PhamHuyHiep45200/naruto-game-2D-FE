@@ -16,5 +16,5 @@ export const gameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   scene: [LangLaScene],
-  render: { antialias: true, pixelArt: false },
+  render: { antialias: true, pixelArt: false, roundPixels: true },
 };
