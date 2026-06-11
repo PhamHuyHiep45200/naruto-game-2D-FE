@@ -69,6 +69,14 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
   jump() {
     if (this.isJumping) return;
     this.isJumping = true;
+
+    // Hủy bỏ di chuyển tự động khi thực hiện nhảy
+    if (this.autoMoveTween) {
+      this.autoMoveTween.stop();
+      this.autoMoveTween = null;
+      this.isActing = false;
+    }
+
     this.play(`${this.config.key}-jump`, true);
     this.scene.tweens.add({
       targets: this,

@@ -14,7 +14,6 @@ import {
   Music,
   Play,
   ScrollText,
-  ScanSearch,
   Settings,
   SlidersHorizontal,
   Sparkles,
@@ -66,22 +65,70 @@ function selectModalTab(tabId) {
   $$(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === tabId));
 }
 
+let modalTimeout1 = null;
+let modalTimeout2 = null;
+let modalTimeout3 = null;
+
+function clearModalTimeouts() {
+  if (modalTimeout1) clearTimeout(modalTimeout1);
+  if (modalTimeout2) clearTimeout(modalTimeout2);
+  if (modalTimeout3) clearTimeout(modalTimeout3);
+  modalTimeout1 = null;
+  modalTimeout2 = null;
+  modalTimeout3 = null;
+}
+
 function openSystemModal(tabId = "quest-tab", settingsOnly = false) {
-  $("#system-modal").classList.toggle("settings-only", settingsOnly);
+  const modal = $("#system-modal");
+  modal.classList.toggle("settings-only", settingsOnly);
   selectModalTab(tabId);
-  $("#system-modal").classList.add("visible");
+  
+  clearModalTimeouts();
+  
+  modal.classList.remove("opened", "closing");
+  modal.classList.add("visible", "opening");
+  
+  // 1. Mở ra trong 2s
+  modalTimeout1 = setTimeout(() => {
+    modal.classList.remove("opening");
+    modal.classList.add("opened");
+  }, 2000);
+  
+  // 2. Hiển thị trong 6s (tổng cộng 8s từ lúc bắt đầu)
+  modalTimeout2 = setTimeout(() => {
+    closeSystemModal();
+  }, 8000);
+}
+
+function closeSystemModal() {
+  const modal = $("#system-modal");
+  if (!modal.classList.contains("visible") || modal.classList.contains("closing")) return;
+  
+  clearModalTimeouts();
+  
+  modal.classList.remove("opening", "opened");
+  modal.classList.add("closing");
+  
+  // 3. Đóng trong 2s
+  modalTimeout3 = setTimeout(() => {
+    modal.classList.remove("closing", "visible", "settings-only");
+  }, 2000);
 }
 
 function renderProfile() {
   if (!profile) return;
-  $("#account-name").textContent = profile.username;
-  $("#chakra-value").textContent = profile.chakra;
-  $("#quest-progress").textContent = `${profile.kills} / 10`;
-  $("#quest-fill").style.width = `${Math.min(profile.kills / 10 * 100, 100)}%`;
-  $("#bgm-toggle").checked = profile.settings.bgm;
-  $("#sfx-toggle").checked = profile.settings.sfx;
+  $("#account-name").textContent = profile.username || "";
+  $("#chakra-value").textContent = profile.chakra ?? 0;
+  $("#quest-progress").textContent = `${profile.kills ?? 0} / 10`;
+  $("#quest-fill").style.width = `${Math.min((profile.kills ?? 0) / 10 * 100, 100)}%`;
+  if (profile.settings) {
+    $("#bgm-toggle").checked = !!profile.settings.bgm;
+    $("#sfx-toggle").checked = !!profile.settings.sfx;
+  }
 
-  const character = characterByName(profile.character?.name);
+  if (!profile.character) return;
+
+  const character = characterByName(profile.character.name);
   if (character) {
     const skillFolder = skillFolderByClan[character.clan];
     const punchIcon = `/imgs/skill/${skillFolder}/dam.png`;
@@ -92,7 +139,7 @@ function renderProfile() {
     $("#modal-punch-icon").src = punchIcon;
     $("#blast-icon").src = blastIcon;
     $("#modal-blast-icon").src = blastIcon;
-    $("#hero-name").textContent = `${character.name} [Hạ Nhẫn]`;
+    $("#hero-name").innerHTML = `${character.name.toUpperCase()} <span class="hero-rank">[ HẠ NHÂN ]</span>`;
     $("#hero-clan").textContent = `${character.clan} · ${character.skill}`;
     $("#punch-level").textContent = profile.skills.punch;
     $("#blast-level").textContent = profile.skills.blast;
@@ -201,7 +248,7 @@ function bindAuth() {
 
 function bindGameUI() {
   scene.events.on("character", character => {
-    if (!profile?.character || character.name !== profile.character.name) return;
+    if (!profile || !profile.character || character.name !== profile.character.name) return;
     $("#hero-avatar").src = `/imgs/avatar/hud/${character.key}.png`;
   });
   scene.events.on("enemyHp", enemy => {
@@ -252,15 +299,19 @@ function bindGameUI() {
   $$(".skill-slot[data-skill]").forEach(button => button.onclick = () => {
     selectedSkill = button.dataset.skill;
     $$(".skill-slot[data-skill]").forEach(item => item.classList.toggle("active", item === button));
+    if (selectedSkill === "punch") {
+      scene?.punch();
+    } else {
+      scene?.castSkill();
+    }
   });
-  $("#action").onclick = () => selectedSkill === "punch" ? scene.punch() : scene.castSkill();
-  $("#target").onclick = () => scene.nextTarget();
+  $("#action").onclick = () => selectedSkill === "punch" ? scene?.punch() : scene?.castSkill();
+  $("#target").onclick = () => scene?.nextTarget();
   bindJoystick($("#joystick"), (x, y) => scene.setVirtualMove(x, y));
-  $("#menu-open").onclick = () => openSystemModal("quest-tab");
+  $(".hero-panel").onclick = () => openSystemModal("quest-tab");
   $("#character-settings").onclick = () => openSystemModal("settings-tab", true);
   $("#menu-close").onclick = () => {
-    $("#system-modal").classList.remove("visible");
-    $("#system-modal").classList.remove("settings-only");
+    closeSystemModal();
   };
   $$(".tab-button").forEach(button => button.onclick = () => {
     selectModalTab(button.dataset.tab);
@@ -290,8 +341,8 @@ function bindGameUI() {
     if (!confirm("Đăng xuất khỏi game?")) return;
     await api.logout();
     profile = null;
-    $("#system-modal").classList.remove("visible");
-    $("#system-modal").classList.remove("settings-only");
+    clearModalTimeouts();
+    $("#system-modal").className = "modal";
     showScreen("auth-screen");
   };
 }
@@ -314,7 +365,6 @@ export async function startUI(game) {
       Music,
       Play,
       ScrollText,
-      ScanSearch,
       Settings,
       SlidersHorizontal,
       Sparkles,

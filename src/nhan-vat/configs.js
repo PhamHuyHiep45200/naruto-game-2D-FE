@@ -12,7 +12,7 @@ const frames = {
 
 export const characters = [
   { key: "naruto", name: "Naru Uzumaka", clan: "SEN-JIN", punch: 95, skillDamage: 250, skill: "Rasengan", skillImage: "rasengan", speed: 235, frameWidth: 299, frameHeight: 319, frames: frames.naruto },
-  { key: "minato", name: "Mina Namikaz", clan: "SEN-JIN", punch: 95, skillDamage: 250, skill: "Phi Lôi Thần", skillImage: "rasengan", speed: 285, frameWidth: 300, frameHeight: 327, frames: frames.minato },
+  { key: "minato", name: "Mina Namikaze", clan: "SEN-JIN", punch: 95, skillDamage: 250, skill: "Phi Lôi Thần", skillImage: "rasengan", speed: 285, frameWidth: 300, frameHeight: 327, frames: frames.minato },
   { key: "kakashi", name: "KKshi Senpai", clan: "SEN-JIN", punch: 95, skillDamage: 250, skill: "Lôi Thiết", skillImage: "rasengan", speed: 240, frameWidth: 300, frameHeight: 327, frames: frames.kakashi },
   { key: "sasuke", name: "Sasuk Uchyha", clan: "UCHY-HA", punch: 110, skillDamage: 350, skill: "Hỏa Cầu Rồng", skillImage: "chuong-rong", speed: 245, frameWidth: 300, frameHeight: 327, frames: frames.sasuke },
   { key: "itachi", name: "Itach Uchyha", clan: "UCHY-HA", punch: 110, skillDamage: 350, skill: "Hỏa Cầu Rồng", skillImage: "chuong-rong", speed: 225, frameWidth: 350, frameHeight: 355, scale: 0.28, frames: frames.itachi },
