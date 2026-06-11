@@ -21,16 +21,20 @@ export class LangLaScene extends Phaser.Scene {
     this.add.image(1024, 384, "lang-la").setDepth(0);
     this.add.rectangle(1024, 720, 2048, 96, 0x07130d, .18).setDepth(1);
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.keys = this.input.keyboard.addKeys("W,A,S,D,E,Q");
+    this.keys = this.input.keyboard.addKeys("W,A,S,D,E");
     this.virtualMove = { x: 0, y: 0 };
     this.cooldowns = { punch: 0, blast: 0 };
     this.homingProjectiles = new Set();
     this.gameplayEnabled = false;
     this.input.keyboard.on("keydown-SPACE", () => this.punch());
     this.input.keyboard.on("keydown-E", () => this.castSkill());
-    this.input.keyboard.on("keydown-Q", () => this.nextTarget());
-    this.input.keyboard.on("keydown-W", () => this.player?.jump());
-    this.input.keyboard.on("keydown-UP", () => this.player?.jump());
+    const handleJump = () => {
+      if (this.player) {
+        this.player.jump();
+      }
+    };
+    this.input.keyboard.on("keydown-W", handleJump);
+    this.input.keyboard.on("keydown-UP", handleJump);
     this.enemies = [new MocNhan(this, 900, 570, 0), new MocNhan(this, 1330, 570, 1), new MocNhan(this, 1740, 570, 2)];
     this.enemies.forEach(enemy => enemy.on("pointerdown", () => this.setTarget(enemy)));
     this.targetArrow = this.add.triangle(0, 0, 0, 0, 22, 0, 11, 18, 0xff3737).setDepth(9);
@@ -48,6 +52,12 @@ export class LangLaScene extends Phaser.Scene {
     }
     const left = this.cursors.left.isDown || this.keys.A.isDown || this.virtualMove.x < -.25;
     const right = this.cursors.right.isDown || this.keys.D.isDown || this.virtualMove.x > .25;
+
+    // Ngừng di chuyển tự động nếu người chơi chủ động điều khiển
+    if (left || right) {
+      this.stopAutoMove();
+    }
+
     this.player.move(left ? -1 : right ? 1 : 0);
     this.updateHomingProjectiles();
     this.enemies.forEach((enemy, i) => {
@@ -56,12 +66,42 @@ export class LangLaScene extends Phaser.Scene {
         enemy.x += Math.sin(this.time.now / 700 + i) * .25;
       }
     });
+
+    // Tự động chọn mục tiêu khi ở gần (bán kính 250px)
+    const activeEnemies = this.enemies.filter(enemy => enemy.active);
+    if (activeEnemies.length > 0) {
+      let closestEnemy = null;
+      let minDistance = Infinity;
+      activeEnemies.forEach(enemy => {
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestEnemy = enemy;
+        }
+      });
+
+      // Chỉ tự động đổi nếu chưa có mục tiêu, mục tiêu cũ đã chết, hoặc mục tiêu cũ ở quá xa (> 300px)
+      const currentTargetDist = this.target && this.target.active
+        ? Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y)
+        : Infinity;
+
+      if (closestEnemy && minDistance < 250) {
+        if (!this.target || !this.target.active) {
+          if (this.target !== closestEnemy) {
+            this.setTarget(closestEnemy);
+          }
+        }
+      }
+    }
+
     if (this.target?.active) {
       this.targetArrow
         .setVisible(true)
         .setPosition(this.target.x, this.target.y - this.target.displayHeight / 2 - 16);
     }
     else this.nextTarget();
+
+
   }
 
   switchCharacter(config) {
@@ -75,18 +115,33 @@ export class LangLaScene extends Phaser.Scene {
 
   applyProfile(profile) {
     this.profile = profile;
-    const config = characters.find(character => character.name === profile.character?.name);
+    if (!profile || !profile.character) return;
+    const config = characters.find(character => character.name === profile.character.name);
     if (config && this.player?.config.name !== config.name) this.switchCharacter(config);
   }
 
   setTarget(enemy) { if (enemy?.active) { this.target = enemy; this.events.emit("enemyHp", enemy); } }
+
+  stopAutoMove() {
+    if (this.player?.autoMoveTween) {
+      this.player.autoMoveTween.stop();
+      this.player.autoMoveTween = null;
+      this.player.isActing = false;
+      this.player.play(`${this.player.config.key}-idle`, true);
+    }
+  }
   setGameplayEnabled(enabled) {
     this.gameplayEnabled = enabled;
-    if (!enabled) this.setVirtualMove(0, 0);
+    if (!enabled) {
+      this.setVirtualMove(0, 0);
+    }
   }
 
   setVirtualMove(x, y) {
     this.virtualMove = { x, y };
+    if (Math.abs(x) > 0.25 || y < -.45) {
+      this.stopAutoMove();
+    }
     if (y < -.45) this.player?.jump();
   }
 
@@ -98,6 +153,7 @@ export class LangLaScene extends Phaser.Scene {
   }
 
   nextTarget() {
+    this.stopAutoMove();
     const alive = this.enemies
       .filter(enemy => enemy.active)
       .sort((a, b) => Math.abs(a.x - this.player.x) - Math.abs(b.x - this.player.x));
@@ -109,44 +165,116 @@ export class LangLaScene extends Phaser.Scene {
   punch() {
     if (!this.gameplayEnabled) return;
     if (!this.target?.active) return;
+    if (this.player?.isActing) return;
     const target = this.target;
     const distance = Math.abs(target.x - this.player.x);
-    if (distance > 150) return this.notice("Mục tiêu quá xa để đấm");
     if (this.cooldowns.punch > this.time.now) return;
+
+    this.stopAutoMove();
+
     const hit = () => {
+      if (this.player) {
+        this.player.autoMoveTween = null;
+        this.player.isActing = false;
+      }
       if (!this.player.attackAnimation()) return;
       if (!this.startCooldown("punch", this.player.config.punchCooldown)) return;
       this.player.setFlipX(target.x < this.player.x);
       this.time.delayedCall(180, () => this.hitEnemy(target, this.player.config.punch));
     };
-    if (distance > 40) {
+
+    if (distance > 150) {
+      // Tự động di chuyển lại gần đối thủ để tấn công
       const destination = target.x + (this.player.x < target.x ? -38 : 38);
+      const speed = this.player.config.speed || 250;
+      const duration = (Math.abs(destination - this.player.x) / speed) * 1000;
+
+      this.player.isActing = true;
+      this.player.setFlipX(target.x < this.player.x);
+      this.player.play(`${this.player.config.key}-run`, true);
+
+      this.player.autoMoveTween = this.tweens.add({
+        targets: this.player,
+        x: destination,
+        duration: duration,
+        ease: "Linear",
+        onComplete: hit,
+        onUpdate: () => {
+          if (this.player) {
+            this.player.play(`${this.player.config.key}-run`, true);
+            this.player.setFlipX(target.x < this.player.x);
+          }
+        }
+      });
+    } else if (distance > 40) {
+      const destination = target.x + (this.player.x < target.x ? -38 : 38);
+      this.player.isActing = true;
       this.tweens.add({ targets: this.player, x: destination, duration: 140, ease: "Power2", onComplete: hit });
-    } else hit();
+    } else {
+      hit();
+    }
   }
 
   castSkill() {
     if (!this.gameplayEnabled) return;
     if (!this.target?.active) return;
+    if (this.player?.isActing) return;
     const target = this.target;
     const distance = Math.abs(target.x - this.player.x);
-    if (distance < 40 || distance > 300) return this.notice(distance < 40 ? "Lùi ra để dùng chưởng" : "Mục tiêu ngoài tầm chưởng");
     if (this.cooldowns.blast > this.time.now) return;
-    if (!this.player.skillAnimation()) return;
-    if (!this.startCooldown("blast", this.player.config.skillCooldown)) return;
-    this.player.setFlipX(target.x < this.player.x);
-    const orb = this.physics.add.image(
-      this.player.body.center.x,
-      this.player.body.center.y,
-      this.player.config.skillImage,
-    )
-      .setDepth(7)
-      .setDisplaySize(84, 84);
-    orb.body.setAllowGravity(false);
-    orb.homingTarget = target;
-    orb.damageAmount = this.player.config.skillDamage;
-    orb.expiresAt = this.time.now + 1800;
-    this.homingProjectiles.add(orb);
+
+    if (distance < 40) return this.notice("Lùi ra để dùng chưởng");
+
+    this.stopAutoMove();
+
+    const fire = () => {
+      if (this.player) {
+        this.player.autoMoveTween = null;
+        this.player.isActing = false;
+      }
+      if (!this.player.skillAnimation()) return;
+      if (!this.startCooldown("blast", this.player.config.skillCooldown)) return;
+      this.player.setFlipX(target.x < this.player.x);
+      const orb = this.physics.add.image(
+        this.player.body.center.x,
+        this.player.body.center.y,
+        this.player.config.skillImage,
+      )
+        .setDepth(7)
+        .setDisplaySize(84, 84);
+      orb.body.setAllowGravity(false);
+      orb.homingTarget = target;
+      orb.damageAmount = this.player.config.skillDamage;
+      orb.expiresAt = this.time.now + 1800;
+      this.homingProjectiles.add(orb);
+    };
+
+    if (distance > 300) {
+      // Tự động di chuyển lại gần đối thủ để vào tầm chưởng (240px)
+      const destination = target.x + (this.player.x < target.x ? -240 : 240);
+      const speed = this.player.config.speed || 250;
+      const duration = (Math.abs(destination - this.player.x) / speed) * 1000;
+
+      this.player.isActing = true;
+      this.player.setFlipX(target.x < this.player.x);
+      this.player.play(`${this.player.config.key}-run`, true);
+
+      this.player.autoMoveTween = this.tweens.add({
+        targets: this.player,
+        x: destination,
+        duration: duration,
+        ease: "Linear",
+        onComplete: fire,
+        onUpdate: () => {
+          if (this.player) {
+            this.player.play(`${this.player.config.key}-run`, true);
+            this.player.setFlipX(target.x < this.player.x);
+          }
+        }
+      });
+    } else {
+      fire();
+    }
   }
 
   updateHomingProjectiles() {
