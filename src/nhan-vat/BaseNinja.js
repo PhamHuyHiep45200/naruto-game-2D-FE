@@ -32,7 +32,14 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
       animation("attack", 18);
       animation("skill", 10);
     }
-    this.play(`${key}-idle`);
+    this.playAnimation("idle");
+  }
+
+  playAnimation(name) {
+    const animationKey = `${this.config.key}-${name}`;
+    if (this.anims.currentAnim?.key !== animationKey || !this.anims.isPlaying) {
+      this.play(animationKey);
+    }
   }
 
   move(direction) {
@@ -44,9 +51,9 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
     this.setVelocityX(direction * this.config.speed);
     if (direction !== 0) {
       this.setFlipX(direction < 0);
-      this.play(`${this.config.key}-run`, true);
+      this.playAnimation("run");
     } else {
-      this.play(`${this.config.key}-idle`, true);
+      this.playAnimation("idle");
     }
   }
 
@@ -58,7 +65,7 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
     this.play(animationKey, true);
     this.once(`animationcomplete-${animationKey}`, () => {
       this.isActing = false;
-      this.play(`${this.config.key}-${this.isJumping ? "jump" : "idle"}`, true);
+      this.playAnimation(this.isJumping ? "jump" : "idle");
     });
     return true;
   }
@@ -86,7 +93,7 @@ export class BaseNinja extends Phaser.Physics.Arcade.Sprite {
       yoyo: true,
       onComplete: () => {
         this.isJumping = false;
-        if (!this.isActing) this.play(`${this.config.key}-idle`, true);
+        if (!this.isActing) this.playAnimation("idle");
       },
     });
   }
