@@ -1,411 +1,761 @@
-# KẾ HOẠCH TRIỂN KHAI PHASE 2: SHINOBI MERIDIAN RPG (NÂNG CẤP HỆ THỐNG CHIẾN ĐẤU & TIẾN TRÌNH)
+# KẾ HOẠCH TRIỂN KHAI PHASE 3: SHINOBI MERIDIAN RPG (KIẾN TRÚC MẠNG, BẢO MẬT & HẠ TẦNG GOLANG + REDIS + MONGODB)
 
-Tài liệu này đặc tả kiến trúc kỹ thuật, thiết kế chuỗi 15 nhiệm vụ chính tuyến tương ứng với 12 bản đồ liên thông (chỉ các nhiệm vụ đánh quái mới mở khóa bản đồ mới, các nhiệm vụ không đánh quái tái sử dụng bản đồ cũ), hệ thống Hồn Linh Thú nâng cấp trang bị, cơ chế Triệu Hồi Cây Thần Ảo Mộng, hệ thống Phó bản Tổ đội Co-op Gauntlet Raid (ít nhất 2 người, tối đa 8 người), hệ thống Quái Tinh Anh (dự kiến cho Phase 3), cấu trúc cơ sở dữ liệu Back-End và các bộ prompt chuyên dụng cho Phase 2 của game.
-
----
-
-## 1. MỤC TIÊU & CẤU TRÚC PHASE 2
-Phase 2 nâng cấp bản demo từ các tương tác giao diện cơ bản lên một game cày cuốc nhập vai (ARPG) có chiều sâu với các trọng tâm chính:
-1.  **Hệ thống 12 Bản đồ & 15 Nhiệm vụ**: Tối ưu hóa số lượng tài nguyên bản đồ xuống còn 12 bản đồ chính thức. 3 nhiệm vụ đầu tiên đều diễn ra trên cùng một bản đồ làng nhập môn (Map 1: Làng Mộc) chứa cả trung tâm làng, mái nhà và sân tập thể thuật. Các nhiệm vụ đánh quái (combat) tiếp theo sẽ mở ra các bản đồ mới tinh. Các nhiệm vụ phi chiến đấu khác tái sử dụng bản đồ đã có.
-2.  **Cơ chế di chuyển địa hình đặc biệt**:
-    *   **Khinh Công (Bay)**: Bật tính năng bay. Trên PC: nhấn phím Lên (W / Mũi tên lên) để bay lên, phím Sang Ngang (A/D / Mũi tên trái/phải) để di chuyển hướng bay. Trên Mobile: kéo Joystick hướng lên trên để bay lên và di chuyển. Trạng thái bay sẽ tiêu tốn Mana liên tục (tiêu hao 3 Mana/giây).
-    *   **Vật lý Rơi Tự Do (Freefall)**: Nếu Mana tụt xuống dưới 40% khi đang bay, nhân vật lập tức thoát trạng thái bay và rơi tự do. 
-        *   *Vật lý*: Hãm phanh ngang (chỉ giữ tối đa 15% quán tính di chuyển ngang), rơi thẳng đứng với gia tốc trọng trường tăng dần ($g = 800 \text{ px/s}^2$).
-        *   *Khóa điều khiển*: Khóa phím di chuyển ngang (A/D, Joystick trái/phải), khóa phím Nhảy (Jump), Bay (Fly), Đi trên nước. Khóa toàn bộ kỹ năng Đấm (Punch) và Chưởng (Blast) trong suốt quá trình rơi để tránh lơ lửng vô hạn do hoạt ảnh chiêu thức.
-        *   *Tiếp đất (Landing)*: Nếu chạm đất, nhân vật bị khựng nhẹ (Landing Stun) trong 0.5 giây với hiệu ứng khói bụi đất (landing dust) dưới chân trước khi hồi phục quyền kiểm soát. Nếu rơi xuống nước, nhân vật chuyển sang trạng thái Rơi Nước dưới đây.
-    *   **Chạy trên nước & Rơi nước**: Chạy trên nước khi Mana $\ge$ 40% (tiêu hao 2 Mana/giây), có vòng gợn nước lan tỏa dưới chân. Khi Mana < 40%, nhân vật tự động rơi xuống nước. Khi ở dưới nước, nhân vật vẫn di chuyển bình thường (không có hoạt ảnh bơi lội), nhưng tốc độ tấn công (đấm) và tốc độ hồi chiêu/thi triển (chưởng) bị chậm lại 30% so với bình thường. Khi đang ở dưới nước mà Mana < 40%, người chơi bị khóa hoàn toàn tính năng kích hoạt Bay. Để kích hoạt lại bay hoặc đi trên nước, người chơi bắt buộc phải đứng yên hồi phục Mana lên trên 40% hoặc di chuyển lên bờ.
-3.  **Hệ thống Hồn Linh Thú (Thay thế cho Ngọc Hồn Thú)**: Thay vì chỉ là nguyên liệu đập đồ thông thường, khi khảm Hồn Linh Thú vào trang bị sẽ kích hoạt các dòng thuộc tính ẩn hoặc hiệu ứng hình ảnh đặc trưng (Ví dụ: Thạch Yêu Hồn Linh tăng thủ vật lý và tạo giáp đá mỏng bao bọc quanh người; Lôi Tộc Hồn Linh tăng tỷ lệ chí mạng và tạo hiệu ứng tia sét nhỏ xẹt phát sáng quanh nhân vật).
-4.  **Cơ chế Triệu Hồi Cây Thần Ảo Mộng**: Thu thập đủ 9 viên Thần Thú Ngọc để triệu hồi Cây Thần, đưa toàn bộ thế giới game từ ban ngày sang đêm Trăng Máu (Vô Hạn Huyết Nguyệt). Trong thời gian Ảo mộng, **sức đánh (sát thương) của tất cả quái vật trên toàn bản đồ tăng thêm 30%** (HP giữ nguyên) cho đến khi Ảo mộng kết thúc và người chơi chọn mộng ước.
-5.  **Cơ chế Thanh Nộ Tối Thượng (Ultimate Rage Awakening)**: Tích nộ trong chiến đấu. Khi đạt 100% nộ sẽ **khóa giữ nộ** (không giảm ngoài giao tranh). Khi sử dụng, người chơi **ngẫu nhiên nhận 1 trong 4 trạng thái cực phẩm** trong 15 giây (Bát Môn Cấm Thuật, Phân Thân Chi Thuật, Tiên Nhân Thể, Triệu Hồi Thần Thú). Sau khi dùng, thanh nộ reset về 0%.
-6.  **Hệ thống Quái Tinh Anh (Elite Monsters) - Dự kiến cho Phase 3**: Không xuất hiện ở các Map 1 đến 12 hiện tại của Phase 2, mà được chuyển sang các Map mới ở Phase 3. Có HP trâu hơn nhiều (+150% HP) và sát thương (cắn) tính theo % Máu tối đa của nhân vật (10% - 15% Max HP mỗi phát cắn). Gồm 3 loại đặc trưng cơ chế: Tinh Anh Phân Thân (nhiễu loạn mục tiêu), Tinh Anh Địa Lôi (khóa bay nhảy), và Tinh Anh Hộ Thuẫn (kháng Đấm/Chưởng xoay tua).
-7.  **Hệ thống Phó bản Tổ đội Co-op Gauntlet Raid (Doanh Trại U Ám Lâm)**: Dành cho tổ đội từ 2-8 người (tối đa 8 người tương đương bang phái, tối thiểu phải có 2 người trở lên cùng đi). Bản đồ gồm 4 map lớn liên thông, mỗi map lớn chia thành 3-4 map nhỏ (khu vực nhỏ). Vượt qua các map nhỏ sẽ đến map cuối chứa Boss gác cổng. Tiêu diệt Boss mới mở cổng sang map lớn tiếp theo. Tích hợp cơ chế tự động cân bằng động quái vật (Scale HP/ATK theo chỉ số người mạnh nhất) và các thử thách phối hợp đồng đội.
-8.  **UX Polish (Chỉ dẫn NPC Quest)**: Các NPC có dấu hỏi chấm màu vàng `!` trên đầu khi có nhiệm vụ mới sẵn sàng giao, và dấu hỏi chấm màu xanh `?` khi người chơi đã làm xong nhiệm vụ cần trả.
-9.  **Cấu trúc dữ liệu Back-End**: Lưu trữ thông tin nhiệm vụ tĩnh, tiến trình động của người chơi và trạng thái túi đồ chứa ngọc/thần thú ngọc.
+Tài liệu này đặc tả chi tiết thiết kế kỹ thuật, kiến trúc mạng thời gian thực, cơ chế bảo mật (chống hack/cheat) và hạ tầng phân tầng dữ liệu cho Giai đoạn 3 (Phase 3) của "Shinobi Meridian RPG". Toàn bộ backend được xây dựng trên hệ sinh thái Golang + Redis + MongoDB nhằm tối ưu hóa hiệu năng, băng thông truyền tải và chi phí vận hành VPS.
 
 ---
 
-## 2. HỆ THỐNG PHÂN CẤP NHÂN VẬT & NHẪN CẤP (90 LEVELS - 9 NHẪN CẤP)
-
-Hệ thống tiến trình nhân vật được xây dựng gồm **90 cấp độ (Level)** chia đều cho **9 cấp bậc Nhẫn Cấp**, mỗi Nhẫn cấp tương ứng với 10 cấp độ và có mối liên kết tượng trưng với sức mạnh của **9 Thần Thú**:
-
-1.  **Nhẫn Cấp 1: Học Viên Nhẫn Giả (Academy Student)** - *Level 1 đến 10*
-    *   *Biểu tượng liên kết*: Nhất Vĩ Sa Thú (1★)
-    *   *Mô tả*: Học viên học tại Học viện Nhẫn giả Làng Mộc, chỉ làm nhiệm vụ phi chiến đấu.
-2.  **Nhẫn Cấp 2: Hạ Nhẫn (Genin)** - *Level 11 đến 20*
-    *   *Biểu tượng liên kết*: Nhị Vĩ Hỏa Miêu (2★)
-    *   *Mô tả*: Đã tốt nghiệp học viện, thực hiện nhiệm vụ tuần tra rừng biên giới (Map 2).
-3.  **Nhẫn Cấp 3: Trung Nhẫn (Chunin)** - *Level 21 đến 30*
-    *   *Biểu tượng liên kết*: Tam Vĩ Thủy Quy (3★)
-    *   *Mô tả*: Đủ năng lực dẫn dắt đội nhóm. Mốc thăng cấp sau khi hoàn thành Đại Chiến Cầu Hỏa Tuyến (Map 12). Mở khóa **Doanh Trại Co-op Gauntlet Raid**.
-4.  **Nhẫn Cấp 4: Thượng Nhẫn (Jonin)** - *Level 31 đến 40*
-    *   *Biểu tượng liên kết*: Tứ Vĩ Hỏa Hầu (4★)
-    *   *Mô tả*: Nhẫn giả ưu tú của Làng, có thể tự học các nhẫn thuật cấp cao A-rank.
-5.  **Nhẫn Cấp 5: Ám Bộ (Anbu)** - *Level 41 đến 50*
-    *   *Biểu tượng liên kết*: Ngũ Vĩ Mã Linh (5★)
-    *   *Mô tả*: Lực lượng ninja đặc nhiệm trực thuộc quyền quản lý của các Thủ Lĩnh Nhẫn Giả (Nhẫn Ảnh).
-6.  **Nhẫn Cấp 6: Nhẫn Giả Huyền Thoại (Legendary Shinobi)** - *Level 51 đến 60*
-    *   *Biểu tượng liên kết*: Lục Vĩ Độc Sên (6★)
-    *   *Mô tả*: Sức mạnh đạt cấp độ huyền thoại tương đương Tam Đại Tông Sư Làng Mộc.
-7.  **Nhẫn Cấp 7: Nhẫn Ảnh (Kage)** - *Level 61 đến 70*
-    *   *Biểu tượng liên kết*: Thất Vĩ Dực Sí (7★)
-    *   *Mô tả*: Người đứng đầu một làng nhẫn giả, sức mạnh tối cao của hệ thống nhẫn giả thông thường.
-8.  **Nhẫn Cấp 8: Tiên Nhân (Sennin / Sage)** - *Level 71 đến 80*
-    *   *Biểu tượng liên kết*: Bát Vĩ Ngưu Xà (8★)
-    *   *Mô tả*: Nhẫn giả đã làm chủ được năng lượng tự nhiên (Tiên thuật), vượt lên trên giới hạn phàm trần.
-9.  **Nhẫn Cấp 9: Nhẫn Thần Lục Đạo (Six Paths Sage)** - *Level 81 đến 90*
-    *   *Biểu tượng liên kết*: Cửu Vĩ Thiên Hồ (9★)
-    *   *Mô tả*: Cấp bậc thần thoại tối thượng, sở hữu sức mạnh tiệm cận Nhẫn Thần và các kỹ năng thay thiên đổi địa.
-
-### A. Cơ chế Phân bổ & Tiêu thụ Chakra (Số liệu Cân bằng Tạm thời)
-Tất cả các số liệu về lượng Chakra nhận từ quái, chi phí nâng cấp dưới đây là **dự kiến tạm thời phục vụ cho việc lập trình Phase 2**:
-*   **Tiêu dùng nâng cấp**: Người chơi sử dụng Chakra để nâng cấp **HP (Máu)**, **Mana (Năng lượng)**, và các kỹ năng **Đấm/Chưởng**.
-*   **Mốc nâng MAX chỉ số cơ bản**: Thiết lập chi phí nâng cấp sao cho đến khoảng **Level 70**, người chơi đã có thể nâng cấp **đạt cấp tối đa (Level 90) cho cả HP và Mana**.
-*   **Quỹ tích lũy dư thừa học bí thuật**: Toàn bộ lượng Chakra tích lũy dư thừa thu được từ Level 70 đến 90 sẽ được dùng tự học các bí thuật tối thượng (như Bát Môn Cấm Thuật, Phân Thân Chi Thuật, Tiên Nhân Thuật, Triệu Hồi Chi Thuật) nếu họ không muốn chi tiêu **Ngọc (Gems - Hard Currency)**.
-
-### B. Mô Hình Toán Học Cày Cuốc & Thời Gian Tích Lũy (Ước Tính 2 Năm)
-Nhằm đảm bảo đạt mốc thời gian **2 năm** cày cuốc thực tế (mỗi ngày chơi trung bình **6-8 tiếng** cày cuốc liên tục, không tính các sự kiện x2 hoặc giftcode bổ trợ) để đạt cấp 90 và max chỉ số, hệ thống sử dụng mô hình toán học sau:
-
-#### 1. Ước tính Quỹ thời gian cày cuốc nhẫn giả
-*   **Tổng số ngày cày trong 2 năm**: 730 ngày.
-*   **Thời gian chơi trung bình**: 7 tiếng/ngày.
-*   **Tổng số giờ cày thực tế (chiếm 80% tổng thời gian chơi)**:
-    $$\text{Tổng số giờ cày} \approx 4,100 \text{ giờ}.$$
-*   **Tốc độ diệt quái trung bình**: 20 quái/phút (tương đương 1,200 quái/giờ).
-*   **Chakra rơi trung bình toàn game**: 250 Chakra/quái (tính trung bình có trọng số qua các map từ 2 đến 500 Chakra/quái).
-*   **Tốc độ cày Chakra trung bình**: 300,000 Chakra/giờ.
-*   **Tổng lượng Chakra cày được sau 2 năm**:
-    $$\text{Tổng Chakra} = 4,100 \text{ giờ} \times 300,000 \text{ Chakra/giờ} = 1,230,000,000 \text{ Chakra (1.23 Tỷ)}.$$
-
-#### 2. Phân bổ tiêu thụ Chakra lên Cấp 90 (Level Cap)
-Người dùng sử dụng 1.23 Tỷ Chakra này để nâng cấp cho 3 hạng mục chính là HP (Máu), Kỹ năng Đấm (Thể thuật) và Kỹ năng Chưởng (Nhẫn thuật). Level nhân vật hiển thị sẽ là trung bình cộng cấp độ của 3 hạng mục này:
-$$\text{Level Nhân Vật} = \text{Làm Tròn}\left(\frac{\text{Cấp HP} + \text{Cấp ĐẤM} + \text{Cấp CHƯỞNG}}{3}\right)$$
-
-Mỗi hạng mục tiêu tốn trung bình **410,000,000 Chakra** để nâng cấp từ 1 lên 90. Công thức tính chi phí nâng từ cấp $x-1$ lên cấp $x$ của mỗi hạng mục là:
-$$\text{Chi phí nâng}(x) = 0.83 \times x^{3.8} + (x \times 1,000) + 100$$
-
-*   *Lên cấp 2*: Tốn **2,111 Chakra** ($\approx$ Đạt được qua các phần thưởng nhiệm vụ ở Map 1).
-*   *Lên cấp 30*: Tốn **340,921 Chakra** ($\approx$ 28 tiếng cày ở Map 3 / Map 4).
-*   *Lên cấp 70*: Tốn **7,680,000 Chakra** (đạt mốc MAX chỉ số cơ bản HP và Mana).
-*   *Lên cấp 90 (cấp cuối)*: Tốn **20,780,000 Chakra** ($\approx$ 34 ngày cày ở các Map từ 9 đến 12).
-
-#### 3. Cơ chế nâng HP & Mana đạt mốc tối đa ở Level 70
-Để người chơi đạt mốc MAX cấp 90 cho chỉ số HP và Mana trước khi nhân vật đạt Level 70:
-*   Tổng chi phí nâng cấp HP và Mana lên cấp 90 sẽ đạt được khi nhân vật tích lũy đủ **60% tổng lượng Chakra** (tương đương khoảng Level 70).
-*   Từ Level 70 đến 90, lượng Chakra dư thừa ước tính khoảng **400 Triệu Chakra** sẽ được dôi ra làm quỹ để người chơi tự học các bí thuật tối thượng (như Bát Môn Cấm Thuật, Phân Thân Chi Thuật, v.v.) mà không cần mua bằng Ngọc (Gems).
+## 1. MỤC TIÊU PHASE 3
+1.  **Hạ tầng công nghệ hiệu năng cao (Golang + Redis + MongoDB)**: Đảm bảo khả năng chịu tải hàng nghìn người chơi đồng thời (CCU) chỉ với cấu hình VPS giá rẻ ($5 - $10/tháng).
+2.  **Tối ưu hóa băng thông & Độ trễ**: Chuyển đổi định dạng truyền tin nhị phân (Protobuf), hạ tần số Tick Rate xuống 20Hz kết hợp Delta Compression và thuật toán lọc vùng quan tâm AOI.
+3.  **Bảo mật tuyệt đối (Server-Authoritative)**: Chống mọi hình thức Hack tốc độ, Hack vị trí, Hack đi xuyên tường (Noclip), Hack Bay, Hack Mana, Hack hồi chiêu (Cooldown), Spam đòn đánh, Replay Attack và Hack sát thương.
+4.  **Hòa giải độ trễ mượt mà (Client Prediction & Rollback)**: Tránh cảm giác khựng/lag khi tấn công quái vật bằng cơ chế dự đoán phía máy khách kết hợp Quay ngược thời gian (Lag Compensation) và Đồng bộ lại (Reconciliation) ở máy chủ.
 
 ---
 
-## 3. KIẾN TRÚC CƠ SỞ DỮ LIỆU BACK-END (DB SCHEMA)
+## 2. KIẾN TRÚC HẠ TẦNG CƠ SỞ DỮ LIỆU (GOLANG + REDIS + MONGODB)
 
-Để đảm bảo lưu trữ vĩnh viễn tiến trình của người chơi và tránh gian lận, BE sẽ triển khai 4 bảng dữ liệu sau:
+Sự kết hợp giữa Golang làm lõi xử lý logic, Redis làm cache RAM thời gian thực và MongoDB làm kho lưu trữ vĩnh viễn mang lại hiệu suất tối ưu vượt trội so với các mô hình RDBMS truyền thống (như PostgreSQL).
 
-### A. Bảng `Quests` (Danh mục nhiệm vụ tĩnh)
-```sql
-CREATE TABLE Quests (
-    quest_id VARCHAR(50) PRIMARY KEY, -- Ví dụ: 'Q001', 'Q002'
-    title VARCHAR(100) NOT NULL,       -- Tiêu đề nhiệm vụ
-    type VARCHAR(20) NOT NULL,        -- 'main' (chính tuyến) hoặc 'daily' (hằng ngày)
-    required_level INT DEFAULT 1,      -- Cấp độ tối thiểu để nhận
-    rewards JSON,                      -- Phần thưởng dạng JSON: {"gold": 500, "chakra": 200, "gems": 10}
-    next_quest_id VARCHAR(50)          -- ID nhiệm vụ tiếp theo
-);
+```mermaid
+graph TD
+    Client[Phaser Client] <-->|WSS Protobuf| GoServer[Golang Game Server]
+    GoServer <-->|Đọc/Ghi Real-time < 1ms| Redis[(Redis RAM Cache)]
+    GoServer -->|Write-Back Cache định kỳ| MongoDB[(MongoDB Persistence)]
 ```
 
-### B. Bảng `SubQuests` (Yêu cầu nhiệm vụ con)
-```sql
-CREATE TABLE SubQuests (
-    sub_quest_id VARCHAR(50) PRIMARY KEY,
-    quest_id VARCHAR(50),
-    description TEXT NOT NULL,
-    target_type VARCHAR(30),           -- 'kill_monster', 'collect_item', 'talk_npc', 'reach_location'
-    target_id VARCHAR(50),             -- ID của quái/vật phẩm/NPC tương ứng
-    target_count INT DEFAULT 1,        -- Số lượng yêu cầu
-    FOREIGN KEY (quest_id) REFERENCES Quests(quest_id)
-);
-```
+### A. Golang - Game Server Concurrency & Physics Optimization
+*   **Goroutines siêu nhẹ**: Golang sử dụng mô hình lập trình đồng thời dựa trên Goroutine (chỉ tiêu tốn ~2KB RAM cho mỗi luồng xử lý kết nối). Game server có thể quản lý 2,000 - 3,000 kết nối Websocket đồng thời một cách mượt mà trên 1 VPS core đơn mà không bị thắt nút cổ chai luồng (thread bottleneck) như Java hay C#.
+*   **Tối ưu hóa Logic Vật lý (Hitbox math)**: Để tiết kiệm CPU, server không chạy các engine vật lý 2D cồng kềnh (như Box2D). Thay vào đó, tất cả va chạm hitbox được quy đổi về các phép tính toán học cơ bản:
+    *   *Xác định đòn đánh trúng*: Sử dụng công thức khoảng cách Euclide giữa tâm nhân vật và quái vật:
+        $$\Delta x^2 + \Delta y^2 < \text{Range}^2$$
+    *   *Xác định va chạm bản đồ*: Sử dụng hệ thống lưới nhị phân (Binary Grid) biểu diễn các ô không thể đi qua (Collidable Tiles). Server chỉ kiểm tra tọa độ nhân vật có nằm trong ô cấm hay không bằng phép tra cứu mảng O(1).
 
-### C. Bảng `PlayerQuestProgress` (Tiến trình thực tế của người chơi - Động)
-```sql
-CREATE TABLE PlayerQuestProgress (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    quest_id VARCHAR(50) NOT NULL,
-    status VARCHAR(20) DEFAULT 'active', -- 'active' (đang làm), 'completed' (chờ nhận thưởng), 'claimed' (đã nhận)
-    sub_quest_progress JSON,             -- Tiến trình thực tế dạng JSON: {"SQ001": 3, "SQ002": 0}
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (quest_id) REFERENCES Quests(quest_id)
-);
-```
+### B. Redis - RAM Cache siêu tốc & Real-time Leaderboard
+*   **Hot Session Storage**: Lưu trữ thông tin trạng thái hoạt động tức thời của người chơi (vị trí hiện tại, ID bản đồ, ID ô lưới AOI, trạng thái kết nối). Tốc độ đọc/ghi từ Redis đạt dưới 1ms, giúp Golang Server xác thực thông tin tức thời.
+*   **Bảng xếp hạng động (Sorted Sets - ZSET)**: 
+    *   Sử dụng cấu trúc dữ liệu `ZSET` của Redis để lưu trữ thứ hạng Level, Sức mạnh và Chakra tích lũy.
+    *   Khi người chơi tăng cấp hoặc nhận thêm Chakra, Server gửi lệnh cập nhật lên Redis bằng lệnh `ZADD leaderboard score user_id`. Redis tự động sắp xếp lại vị trí với độ phức tạp $O(\log N)$. Việc truy vấn top 100 người chơi (`ZREVRANGE leaderboard 0 99 WITHSCORES`) diễn ra ngay lập tức mà không cần thực hiện các câu lệnh `ORDER BY` đắt đỏ quét qua toàn bộ cơ sở dữ liệu.
 
-### D. Bảng `PlayerStats` (Chỉ số, Kỹ năng và Cấp độ người chơi - Động)
-```sql
-CREATE TABLE PlayerStats (
-    user_id INT PRIMARY KEY,              -- Khóa ngoại liên kết tới bảng Users
-    hp_level INT DEFAULT 1,               -- Cấp độ nâng cấp chỉ số Máu (HP) - Tối đa 90
-    mana_level INT DEFAULT 1,             -- Cấp độ nâng cấp chỉ số Năng lượng (Mana) - Tối đa 90
-    punch_level INT DEFAULT 1,            -- Cấp độ nâng cấp kỹ năng Đấm thường - Tối đa 90
-    blast_level INT DEFAULT 1,            -- Cấp độ nâng cấp kỹ năng Chưởng lực - Tối đa 90
-    current_chakra INT DEFAULT 0,         -- Số Chakra khả dụng hiện có (dùng để tiêu xài nâng cấp)
-    total_chakra_spent INT DEFAULT 0,     -- Tổng số Chakra đã tiêu xài từ đầu game đến nay
-    total_chakra_accumulated INT DEFAULT 0, -- Tổng số Chakra tích lũy (EXP để tự động thăng cấp)
-    character_level INT DEFAULT 1,        -- Level hiển thị của nhẫn giả (Trung bình cộng của HP + Đấm + Chưởng)
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+### C. MongoDB - Document Store & Write-Back Cache
+*   **Single-Document Save State**: Tránh cấu trúc SQL phức tạp cần liên kết (JOIN) nhiều bảng như `players`, `inventories`, `skills`, `quests`. Toàn bộ dữ liệu người chơi được lưu trữ dưới dạng một tài liệu BSON duy nhất:
+    ```json
+    {
+      "user_id": 12345,
+      "stats": { "level": 30, "hp_level": 35, "mana_level": 25, "punch_level": 30, "blast_level": 30, "accumulated_chakra": 340921 },
+      "inventory": { "gold": 5000, "gems": 100, "spirit_souls": [{"type": "LoiToc", "slot": "weapon"}] },
+      "quests": { "current_quest": "Q008", "progress": {"SQ008_1": 3} }
+    }
+    ```
+    *   *Đăng nhập*: Chỉ cần đúng 1 câu lệnh `db.players.findOne({ "user_id": 12345 })` để tải toàn bộ thông tin người chơi lên RAM.
+*   **Schema-less Flexibility**: Dễ dàng cập nhật các chỉ số mới, vật phẩm mới hoặc cơ chế Hồn Linh Thú mà không cần chạy SQL Migration đổi cấu trúc bảng, tránh treo hệ thống khi cập nhật phiên bản mới.
+*   **Cơ chế Ghi-Lùi (Write-Back Caching)**: Game server tuyệt đối **không ghi trực tiếp xuống MongoDB mỗi khi quái chết hay người chơi nhặt Chakra** để tránh nghẽn ổ đĩa (I/O Bottleneck).
+    *   Mọi thay đổi chỉ số được thực hiện trực tiếp trên bộ nhớ RAM của Server và ghi tạm vào Redis.
+    *   Dữ liệu chỉ được ghi xuống MongoDB (Persist) khi: Người chơi chuyển map, người chơi đăng xuất (Logout), hoặc định kỳ tự động lưu (Auto-save) mỗi 5 phút/lần.
+
+### D. So sánh hiệu năng: MongoDB + Redis vs PostgreSQL
+*   **PostgreSQL**:
+    *   *Ưu điểm*: Đảm bảo tính nhất quán giao dịch (ACID) cực kỳ nghiêm ngặt, chống trùng lặp dữ liệu tốt.
+    *   *Nhược điểm*: Khi số lượng người chơi tăng cao, việc JOIN liên tục các bảng để lấy thông tin nhân vật + túi đồ + nhiệm vụ sẽ gây quá tải CPU của DB Server. Việc thay đổi cấu trúc bảng (ALTER TABLE) khi thêm tính năng mới rất phức tạp và có thể gây khóa bảng (Table Lock).
+*   **MongoDB + Redis (Lựa chọn tối ưu)**:
+    *   *Lý do chọn*: Tách biệt hoàn toàn tầng ghi dữ liệu thời gian thực (Redis RAM) và lưu trữ lâu dài (MongoDB Document). Đọc ghi không block, không JOIN. Tốc độ đọc ghi nhanh hơn gấp 5 - 10 lần PostgreSQL trong kịch bản game online có tần suất cập nhật dữ liệu liên tục. Tính linh hoạt cao giúp đội phát triển cập nhật game liên tục mà không cần dừng server.
+
+---
+
+## 3. TỐI ƯU HÓA ĐỘ TRỄ CHIẾN ĐẤU & HỆ THỐNG KIỂM TRA KÉP (DUAL-CHECK SYSTEM)
+
+### A. Luồng Tối Ưu Độ Trễ Cú Đấm (0ms Attack Delay)
+Để người chơi không cảm thấy bị khựng hoặc có cảm giác đấm trượt do độ trễ truyền tín hiệu lên server:
+
+1.  **Thi hành tức thời ở Client (Client-Side Prediction)**: Khi người chơi nhấn nút ĐẤM, Client Phaser lập tức chạy hoạt ảnh đấm, phát âm thanh đòn đánh (SFX) và vẽ vệt sáng đòn đánh ngay lập tức (0ms delay). Đồng thời, gửi gói tin nhị phân lên server: `"Tôi đấm tại tọa độ (x, y) ở Tick T"`.
+2.  **Dự đoán va chạm của Client**: Client tự tính toán khoảng cách vật lý đến quái vật trên màn hình. Nếu nằm trong tầm hitbox, Client chạy hiệu ứng tóe lửa (hit particle) và quái vật giật lùi nhẹ.
+3.  **Xác thực Server & Bù trừ trễ (Server Lag Compensation - Rollback)**:
+    *   Khi gói tin di chuyển từ máy khách lên máy chủ (ví dụ mất 50ms), quái vật trên server có thể đã di chuyển sang vị trí khác.
+    *   Server duy trì một **Lịch sử vị trí (History Buffer)** của tất cả thực thể trong vòng 1000ms qua.
+    *   Server sử dụng thời gian của gói tin gửi lên để **quay ngược thời gian** thế giới game về đúng thời điểm Tick T của client.
+    *   Server kiểm tra: *Tại thời điểm Tick T trong quá khứ, cú đấm có trúng quái vật không?*
+    *   Nếu trúng $\rightarrow$ Trừ HP quái vật thật trên server và gửi gói tin xác nhận về client.
+    *   Nếu trượt (hoặc hack) $\rightarrow$ Từ chối đòn đánh, không trừ HP quái trên server.
+4.  **Hòa giải trạng thái (Server Reconciliation & Visual Smoothing)**:
+    *   Để tránh hiện tượng quái vật đột ngột hồi lại máu ảo (health bouncing) gây ức chế cho người chơi khi server từ chối đòn đánh, game áp dụng thiết kế:
+        *   Client chạy hoạt ảnh đấm và hiệu ứng trúng đòn (hit effects) tức thời (0ms).
+        *   **Tuy nhiên, thanh HP của quái vật và số sát thương nhảy lên (damage popups) chỉ hiển thị khi nhận được gói tin xác nhận từ Server** (độ trễ khoảng 30-80ms, mắt người hoàn toàn thấy mượt mà và tự nhiên).
+        *   Nếu server từ chối đòn đánh (do hack hoặc lag quá lớn), client đơn giản là không hiển thị số sát thương và thanh HP quái vật không giảm.
+
+### B. Kịch bản Hack Mana & Hệ thống Kiểm tra Kép (Dual-Check System)
+Ngăn chặn hacker can thiệp vào bộ nhớ RAM trình duyệt để sửa đổi chỉ số Mana.
+
+#### 1. Mô tả kịch bản Hack
+*   **Trạng thái thực trên Server**: Người chơi còn 5 Mana. Kỹ năng Chưởng lực yêu cầu 10 Mana.
+*   **Hành vi Hack**: Hacker sử dụng tool (ví dụ Cheat Engine) sửa đổi bộ nhớ Client thành 100 Mana.
+*   **Hành động**: Hacker nhấn nút Chưởng lực. Client thấy 100 Mana $\ge$ 10 Mana nên cho phép thi triển.
+
+#### 2. Quy trình xử lý Kiểm tra Kép (Dual-Check Flow)
+
+```
+[Người chơi nhấn nút Chưởng]
+       |
+       v
+[Client-Check]: client_mana >= 10?
+       |
+       +---> KHÔNG ---> Nháy đỏ nút chiêu, không gửi tin lên server (Chống spam mạng).
+       |
+       +---> CÓ -------> Trừ client_mana -= 10 (còn 90), chạy hoạt ảnh chưởng,
+                         phóng quả cầu lửa đi, gửi gói tin lên Server.
+                               |
+                               v
+                      [Server-Check]: server_mana >= 10?
+                               |
+                               +---> KHÔNG (Hack/Lệch) ---> Hủy đòn đánh trên Server.
+                               |                            Gửi gói tin Từ chối (Reject/Sync) về Client.
+                               |                            *Xử lý ở Client*:
+                               |                            - Hủy quả cầu lửa đang bay.
+                               |                            - Không trừ máu quái vật.
+                               |                            - Ép gán client_mana = 5 (Đồng bộ lại trị thực).
+                               |
+                               +---> CÓ (Hợp lệ) ---------> Trừ server_mana -= 10.
+                                                            Tính sát thương thật, gửi xác nhận về.
+                                                            Client nhận xác nhận -> Hiện số dame, trừ HP quái.
 ```
 
 ---
 
-## 4. CHUỒI 15 NHIỆM VỤ CHÍNH TUYẾN TƯƠNG ỨNG 12 BẢN ĐỒ CHI TIẾT (MAP PROGRESSION)
+## 4. KIẾN TRÚC MẠNG TỐI ƯU & GIAO THỨC TRUYỀN TẢI NHỊ PHÂN
 
-Dưới đây là thiết kế chuỗi 15 nhiệm vụ chính tuyến. Chỉ những nhiệm vụ đánh quái mới sử dụng bản đồ mới. Bản đồ 1 chứa toàn bộ các khu vực luyện tập ban đầu của làng.
+Nhằm tiết kiệm tối đa băng thông truyền tải và tối ưu hóa chi phí thuê server:
 
-### PHẦN I: GIAI ĐOẠN HỌC VIỆN (Làng Mộc yên bình - Map 1)
+### A. Định dạng nhị phân siêu nén (Binary Protobuf)
+*   Thay vì truyền tải dạng văn bản JSON nặng nề, game sử dụng **Google Protocol Buffers (Protobuf)** để nén gói tin thành chuỗi byte thô trước khi truyền qua WebSocket.
+*   **So sánh kích thước gói tin di chuyển (Move Packet)**:
+    *   *JSON format*: `{"action":"move","uid":102,"x":250.5,"y":400.0,"dir":1}` $\rightarrow$ **58 Bytes**.
+    *   *Protobuf format (Binary)*: `[0x02, 0x66, 0x43, 0xFA, 0x01, 0x90, 0x01]` $\rightarrow$ **7 Bytes** (Giảm **88%** dung lượng).
+*   **Hiệu quả băng thông**: Băng thông trung bình của một người chơi khi di chuyển và chiến đấu liên tục chỉ tốn khoảng **0.5 - 1 KB/s**. Khi đứng yên, băng thông tiêu thụ là **0 KB/s**.
 
-*   **Nhiệm vụ 1: Chú Mèo Tinh Nghịch của Trưởng Thôn (Phi chiến đấu)**
-    *   **Bản đồ**: *Map 1: Làng Mộc* (Khu vực trung tâm làng, nhà cửa san sát).
-    *   *NPC*: Trưởng thôn Làng Mộc (Có dấu `!` trên đầu, chuyển thành `?` khi xong).
-    *   *Nhiệm vụ con*: Nhận nhiệm vụ $\rightarrow$ Nhảy leo lên các mái nhà gỗ của Map 1 để tìm chú mèo mất tích $\rightarrow$ Tiếp cận và bắt đem về báo cáo.
-    *   *Thưởng*: +100 Chakra, +20 Vàng.
-*   **Nhiệm vụ 2: Huấn Luyện Khinh Công (Phi chiến đấu)**
-    *   **Bản đồ**: *Tái sử dụng Map 1: Làng Mộc* (Bay lượn trên khu vực mái nhà cao hơn).
-    *   *NPC*: Sư phụ Cóc Tiên Nhân (Có dấu `!` trên đầu).
-    *   *Nhiệm vụ con*: Học bí thuật khinh công $\rightarrow$ Sử dụng phím điều khiển (PC: W/Up; Mobile: Joystick lên) $\rightarrow$ Bay lướt thu thập 5 hạt Chakra tự nhiên lơ lửng trên không trung của Map 1 (bay tiêu tốn 3 Mana/giây).
-    *   *Thưởng*: +150 Chakra, Mở khóa vĩnh viễn tính năng Bay.
-*   **Nhiệm vụ 3: Bài Tập Cận Chiến Thể Thuật (ĐẤM MỘC NHÂN - Phi chiến đấu)**
-    *   **Bản đồ**: *Tái sử dụng Map 1: Làng Mộc* (Khu vực sân tập thể thuật ở rìa làng).
-    *   *NPC*: Huấn Luyện Viên Thể Thuật.
-    *   *Nhiệm vụ con*: Đấm phá hủy 5 Mộc Nhân gỗ luyện tập đặt tại sân tập Map 1 $\rightarrow$ Thực hành kỹ năng đấm áp sát (Auto-dash) cự ly ngắn dưới 150px.
-    *   *Thưởng*: +250 Chakra, +10 Ngọc (Gems).
+### B. Tần số mạng Tick Rate 20Hz & Delta Compression
+*   **Tick Rate 20Hz (50ms/tick)**: Server chỉ cập nhật trạng thái thế giới và gửi thông tin về client 20 lần/giây. Giữa các tick, client tự tính toán nội suy (Interpolation) vị trí của quái vật và người chơi khác để đảm bảo chuyển động mượt mà ở tốc độ 60 FPS.
+*   **Delta Compression**: Server chỉ gửi các gói tin cập nhật trạng thái khi thực sự có sự thay đổi (ví dụ: nhân vật bắt đầu chạy, dừng lại, đổi hướng hoặc tung chiêu). Nếu nhân vật đứng yên hoặc quái vật không di chuyển, không có gói tin nào được gửi đi.
+
+### C. Quản lý Vùng Quan Tâm (Area of Interest - AOI)
+*   Bản đồ game được chia thành hệ thống lưới ô vuông ảo (Grid Cells) kích thước $400 \times 400$ pixel.
+*   Server chỉ truyền phát thông tin di chuyển/tấn công của thực thể A đến người chơi B nếu thực thể A nằm trong các ô lưới lân cận màn hình của người chơi B (tầm nhìn thực tế). Người chơi ở Map khác hoặc góc bản đồ khác sẽ bị lọc bỏ dữ liệu hoàn toàn để tránh nghẽn mạng client.
 
 ---
 
-### PHẦN II: CHIẾN TRANH BÙNG NỔ (Biên giới Làng Mộc & Làng Phong - Map 2 đến Map 4)
+## 5. HỆ THỐNG BẢO MẬT & CHỐNG HACK (SERVER-AUTHORITATIVE)
 
-*   **Nhiệm vụ 4: Tuần Tra Biên Giới (ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 2: Rừng Biên Giới Làng Mộc* (Bìa rừng lá phong đỏ, bắt đầu có địch).
-    *   *Nhiệm vụ con*: Di chuyển sang Map 2 $\rightarrow$ Tiêu diệt 6 Nhẫn giả tuần tra của **Sa Cát Thôn** đang do thám biên giới. Chakra nhận được sẽ tự động cộng thẳng vào ví nhân vật khi quái chết.
-    *   *Thưởng*: +350 Chakra, +100 Vàng, **Nhận Thần Thú Ngọc 1★ (Thưởng cốt truyện)**.
-*   **Nhiệm vụ 5: Hộ Tống Xe Tiếp Tế Tiền Tuyến (ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 3: Thung Lũng Làng Mộc* (Hẻm núi đất chật hẹp, dễ phục kích).
-    *   *Nhiệm vụ con*: Sang Map 3 tìm xe hàng tiếp tế $\rightarrow$ Chiến đấu tiêu diệt 3 đợt Nhẫn giả Sa Cát Thôn phục kích từ hai bên sườn dốc để bảo vệ xe đi hết map.
-    *   *Thưởng*: +400 Chakra, +120 Vàng.
-*   **Nhiệm vụ 6: Đoạt Mật Thư Hành Quân Làng Phong (ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 4: Đồi Cát Làng Phong* (Sa mạc cát vàng, hoang vắng).
-    *   *Nhiệm vụ con*: Xâm nhập vào vùng đồi cát Map 4 $\rightarrow$ Tiêu diệt 8 Nhẫn giả do thám Sa Cát Thôn và thu thập đủ 3 Bản đồ hành quân của chúng.
-    *   *Thưởng*: +500 Chakra, +20 Ngọc, **Nhận Thần Thú Ngọc 2★ (Thưởng cốt truyện)**.
-*   **Nhiệm vụ 7: Đột Nhập Khe Núi Biên Giới (Phi chiến đấu - Vượt cạm bẫy)**
-    *   **Bản đồ**: *Tái sử dụng Map 4: Đồi Cát Làng Phong* (Khu vực hốc đá hiểm trở đầy bẫy).
-    *   *Nhiệm vụ con*: Tại khu vực hẻm đá Map 4 $\rightarrow$ Sử dụng Khinh công bay né tránh các chông nhọn gài dưới hố cát lún và các tảng đá lăn từ vách núi xuống để tiến sâu vào biên giới của địch.
-    *   *Thưởng*: +600 Chakra, +150 Vàng.
+Để ngăn chặn các hành vi gian lận từ phía client, Game Server đóng vai trò làm trọng tài tối cao kiểm tra và xử lý mọi hành động của người chơi theo các cơ chế sau:
 
----
+### A. Xác thực Tốc độ & Vị trí (Anti-Speedhack/Teleport)
+*   Server liên tục tính toán khoảng cách di chuyển tối đa cho phép dựa trên thuộc tính tốc chạy thực tế của nhân vật trên server.
+*   Nếu khoảng cách di chuyển giữa hai gói tin liên tiếp vượt quá giới hạn lý thuyết, server thực hiện giật ngược vị trí (Rubberbanding) hoặc ngắt kết nối trực tiếp (Kick) nếu sai số quá lớn.
 
-### PHẦN III: THÂM NHẬP HỎA TUYẾN (Biên cảnh Làng Mộc & Làng Thổ - Map 5 đến Map 8)
+### B. Xác thực Thời gian Hồi chiêu (Cooldown Verification)
+*   Server lưu trữ mốc thời gian (Timestamp) của lần tung chiêu gần nhất của người chơi.
+*   Nếu khoảng cách giữa hai đòn chưởng ngắn hơn thời gian hồi chiêu (cooldown) thực tế của kỹ năng (có tính đến chỉ số giảm hồi chiêu của nhân vật), đòn đánh lập tức bị hủy bỏ trên server.
 
-*   **Nhiệm vụ 8: Bí Thuật Thủy Hành (HỌC ĐI TRÊN NƯỚC - Phi chiến đấu đặc biệt)**
-    *   **Bản đồ**: *Map 5: Bờ Sông Cầu Hỏa Tuyến* (Bờ sông đá cuội dưới chân cầu treo khổng lồ).
-    *   *Nhiệm vụ con*: Gặp Sư phụ tại Map 5 $\rightarrow$ Vận mana đi trên mặt nước sông nhặt 3 Thùng tiếp tế thuốc nổ (Mana $\ge$ 40%, tiêu hao 2 Mana/giây). Nếu Mana < 40%, nhân vật rơi xuống nước, tốc độ đánh và chưởng giảm 30%.
-    *   *Thưởng*: +700 Chakra, +200 Vàng.
-*   **Nhiệm vụ 9: Giải Cứu Đồng Đội Bị Giam (ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 6: Gầm Cầu Hỏa Tuyến* (Khu vực ẩm ướt dưới kết cấu cầu treo, có lồng giam).
-    *   *Nhiệm vụ con*: Tiến vào Map 6 $\rightarrow$ Tiêu diệt 6 Nhẫn giả Hắc Thạch Thôn đang trông giữ khóa ngục $\rightarrow$ Giải phóng các ninja Làng Mộc đang bị nhốt trong lồng.
-    *   *Thưởng*: +800 Chakra, +250 Vàng, **Nhận Thần Thú Ngọc 3★ (Thưởng cốt truyện)**.
-*   **Nhiệm vụ 10: Khai Phá Nhẫn Thuật (MỞ KHÓA CHƯỞNG - ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 7: Mặt Cầu Hỏa Tuyến* (Mặt cầu gỗ treo dài, hai bên vách núi gió lớn).
-    *   *Nhiệm vụ con*: Di chuyển lên mặt cầu Map 7 $\rightarrow$ Kích hoạt mở khóa kỹ năng CHƯỞNG (Phi Tiêu Phong Lực / Hỏa Cầu Thuật / Mãnh Hổ Chưởng) $\rightarrow$ Dùng chưởng tầm xa (40px - 300px) tiêu diệt 10 Nhẫn giả Hắc Thạch Thôn tràn qua cầu.
-    *   *Thưởng*: +900 Chakra, mở khóa kỹ năng Chưởng Cấp 1.
-*   **Nhiệm vụ 11: Thủy Chiến Dưới Lòng Sông (ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 8: Vực Nước Sông Hỏa Tuyến* (Lòng sông sâu, nước xiết dữ dội).
-    *   *Nhiệm vụ con*: Nhảy xuống Map 8 $\rightarrow$ Đứng trên mặt nước chiến đấu tiêu diệt **15 Thủy Quái** do địch triệu hồi (nếu rơi nước sẽ bị giảm 30% tốc đánh/thi triển) $\rightarrow$ Kích hoạt Thức Tỉnh Hóa Thú Khổng Lồ tạm thời quét sạch quái vật.
-    *   *Thưởng*: +1000 Chakra, mở khóa nút Thức Tỉnh.
+### C. Giới hạn Tần suất Hành động (Action Rate Limiter - Chống Spam Đòn Đánh)
+*   Hacker có thể gửi hàng trăm gói tin ĐẤM thường bằng các công cụ macro/auto-click mà không cần đổi chỉ số sát thương.
+*   **Cơ chế**: Server thiết lập một bộ đếm tần suất đòn đánh dựa trên chỉ số Tốc độ đánh (Attack Speed) của người chơi:
+    *   Ví dụ: Tốc đánh cho phép tối đa 2 đấm/giây $\rightarrow$ Khoảng cách tối thiểu giữa các đòn đánh $\ge 500\text{ms}$ (cho phép sai số 10% do dao động ping).
+    *   Mọi gói tin tấn công đến sớm hơn khoảng thời gian này sẽ bị Server từ chối xử lý và tăng điểm cảnh cáo (Suspicion Score) của tài khoản đó.
 
----
+### D. Xác thực Trạng thái Di chuyển (Movement State Machine Validation - Chống Noclip / Fly Hack)
+*   Hacker có thể sửa client để đi xuyên tường (Wallhack/Noclip) hoặc tự bay lơ lửng vô hạn mà không tốn mana.
+*   **Cơ chế**: Server duy trì một Máy trạng thái di chuyển (Movement State Machine) đồng bộ với client: `ĐỨNG_YÊN`, `CHẠY`, `NHẢY`, `BAY`, `RƠI_TỰ_DO`, `DƯỚI_NƯỚC`.
+    *   *Check Bay/Rơi tự do*: Nếu tọa độ Y liên tục tăng (bay lên) hoặc đứng yên giữa không trung nhưng trạng thái của người chơi không phải là `BAY` (hoặc mana không bị trừ 3 mana/giây), server sẽ kéo người chơi rơi tự do về mặt đất gần nhất.
+    *   *Check xuyên tường*: Server chạy thuật toán kiểm tra va chạm (AABB Check) giữa tọa độ mới của người chơi với Lưới va chạm bản đồ (Binary Grid). Nếu nhân vật đứng đè vào ô cấm, tọa độ sẽ bị reset về vị trí hợp lệ trước đó.
 
-### PHẦN IV: ĐỘT KÍCH VÀO SÀO HUYỆT ĐỊCH (Lãnh địa Làng Thổ - Map 9 đến Map 12)
+### E. Chống gửi lại gói tin (Sequence ID / Nonce - Chống Replay Attack)
+*   Hacker có thể bắt gói tin WebSocket nhặt đồ, hoàn thành nhiệm vụ, hoặc giao dịch, sau đó gửi lại gói tin đó liên tục nhằm nhân bản vật phẩm hoặc nhận tiền vô hạn.
+*   **Cơ chế**: 
+    *   Mỗi khi Client kết nối, hệ thống sinh ra một bộ đếm tăng dần `Sequence ID` bắt đầu từ `0`.
+    *   Mỗi gói tin từ client gửi lên bắt buộc phải đính kèm `Sequence ID` tăng dần theo thứ tự gửi.
+    *   Server lưu trữ `Last Processed Sequence ID`. Nếu nhận được gói tin có ID nhỏ hơn hoặc bằng giá trị đã xử lý, Server từ chối ngay lập tức và đánh dấu gói tin giả mạo.
 
-*   **Nhiệm vụ 12: Tấn Công Tiền Đồn Phòng Thủ (Cày cuốc 1 - ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 9: Tiền Đồn Làng Thổ* (Trại lính bằng đá thô, chòi gác cao).
-    *   *Nhiệm vụ con*: Xâm nhập Map 9 $\rightarrow$ Tiêu diệt **10 Nhẫn giả Thiết Giáp Hắc Thạch Thôn** (máu cực dày, thủ cao).
-    *   *Thưởng*: +1000 Chakra, +200 Vàng.
+### F. Nhặt Đồ & Giao Dịch Authoritative (Server-Authoritative Transactions & Loot)
+*   Tuyệt đối không để Client quyết định nhặt được món đồ gì hoặc mua thành công cái gì.
+    *   *Nhặt đồ*: Khi quái chết, server sinh vật phẩm ngẫu nhiên, gán `Spawn_ID` tạm thời trên server và gửi thông báo hiển thị cho client. Khi người chơi đi qua, client gửi gói tin `"Tôi muốn nhặt Spawn_ID tại tọa độ (x,y)"`. Server kiểm tra khoảng cách từ nhân vật đến tọa độ vật phẩm thực tế, nếu $\le 150\text{px}$ mới cộng vật phẩm vào database và gửi lệnh xóa vật phẩm khỏi thế giới game.
+    *   *Giao dịch*: Client chỉ gửi yêu cầu mong muốn (ví dụ: "Mua vật phẩm X từ NPC Y"). Server kiểm tra vị trí NPC Y, kiểm tra số vàng trong ví trên Redis/MongoDB, thực hiện trừ tiền và tự động thêm vật phẩm vào túi đồ trực tiếp trên Database rồi đồng bộ lại client.
 
----
-#### 🚨 [MỐC TẬP LUYỆN 1: KHÓA CẤP ĐỘ 4]
-*   **Yêu cầu**: Nhân vật phải đạt **Level 4** và nâng kỹ năng **ĐẤM lên Cấp 3** mới được nhận Nhiệm vụ 13.
-*   **Mục đích**: Người chơi cày Chakra nâng cấp lực đấm và phòng thủ để chuẩn bị xâm nhập vào sào huyệt hiểm trở của địch tại Map 10.
----
+### G. Mã Hóa Biến Số Trong Bộ Nhớ RAM Client (Runtime Memory Obfuscation)
+*   Ngăn chặn hacker sử dụng các công cụ như Cheat Engine để quét tìm địa chỉ RAM của chỉ số HP, Mana, Vàng, Level nhằm thay đổi giá trị hoặc đóng băng chỉ số.
+*   **Cơ chế**: Ở phía Phaser Client (Javascript), các chỉ số nhạy cảm được mã hóa liên tục trước khi lưu trữ bằng thuật toán XOR với khóa động sinh ra ngẫu nhiên khi khởi động game:
+    *   Công thức lưu trữ:
+        $$\text{Value\_Stored} = \text{Value\_Real} \oplus \text{Dynamic\_Key}$$
+    *   Mỗi khi render giao diện hoặc tính toán nội bộ, Client dùng hàm getter để giải mã tạm thời:
+        $$\text{Value\_Real} = \text{Value\_Stored} \oplus \text{Dynamic\_Key}$$
+    *   Điều này làm thay đổi giá trị lưu trữ thực tế trong RAM liên tục, khiến các phần mềm quét bộ nhớ không thể tìm ra giá trị tĩnh.
 
-*   **Nhiệm vụ 13: Vượt Vách Đá Đột Kích (ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 10: Vách Đá Làng Thổ* (Dốc đá đứng obsidian trơn trượt đầy hốc đá bí ẩn).
-    *   *Nhiệm vụ con*: Xâm nhập Map 10 $\rightarrow$ Đánh bại **15 Vệ Binh Đất Đá Hắc Thạch Thôn** cản đường lên đỉnh.
-    *   *Thưởng*: +1500 Chakra, +30 Ngọc (Gems).
-*   **Nhiệm vụ 14: Thu Thập Tinh Thể Nổ (Cày cuốc 2 - ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 11: Hang Đá Làng Thổ* (Hang ngầm tối tăm, nhiều tinh thể thạch anh đỏ phát sáng).
-    *   *Nhiệm vụ con*: Đi sâu vào Map 11 $\rightarrow$ Tiêu diệt quái hang động để nhặt đủ **20 Tinh Thể Phát Nổ** phục vụ cho kế hoạch đánh sập cầu.
-    *   *Thưởng*: +2000 Chakra, +300 Vàng.
-
----
-#### 🚨 [MỐC TẬP LUYỆN 2: KHÓA CẤP ĐỘ 6]
-*   **Yêu cầu**: Nhân vật phải đạt **Level 6** và nâng kỹ năng **CHƯỞNG lên Cấp 4** mới được nhận Nhiệm vụ 15.
-*   **Mục đích**: Nâng cao chưởng lực và tầm đánh để đủ sức tham gia vào đại chiến chiến dịch lớn nhất tại Cầu Hỏa Tuyến.
----
-
-*   **Nhiệm vụ 15: Đại Chiến Cầu Hỏa Tuyến (Trận Chiến Cuối Cùng - ĐÁNH QUÁI - MỞ MAP MỚI)**
-    *   **Bản đồ**: *Map 12: Trận Địa Cầu Hỏa Tuyến* (Toàn cảnh cầu treo bốc cháy, bầu trời đỏ rực lửa chiến tranh).
-    *   *Nhiệm vụ con*: Quay lại Map 12 hỗ trợ **Tia Chớp Vàng Phong Vũ** $\rightarrow$ Tiêu diệt **20 Nhẫn giả Tinh Nhuệ Hắc Thạch Thôn**.
-    *   *Thưởng*: +5000 Chakra, +100 Ngọc,
----
-
-<!-- ## 5. HỆ THỐNG QUÁI TINH ANH (ELITE MONSTERS) - LÊN KẾ HOẠCH CHO PHASE 3
-
-Để chuẩn bị cho Phase 3, hệ thống **Quái Tinh Anh (Siêu Quái)** với hào quang nguyên tố phát sáng và cơ chế chiến đấu độc đáo sẽ được thiết kế sẵn và xuất hiện tại các bản đồ của Phase 3 (không xuất hiện tại các bản đồ Map 1 đến 12 của Phase 2):
-
-*   **Chỉ số Tinh Anh**:
-    *   **HP tối đa tăng 150%** (Máu cực kỳ trâu bò, gấp 2.5 lần quái thường cùng cấp).
-    *   **Sức đánh (Sát thương)**: Gây sát thương trực tiếp tính theo **% Máu tối đa của nhân vật** (cắn siêu đau, mất từ **10% đến 15% HP tối đa** cho mỗi đòn đánh trúng, bỏ qua phòng thủ vật lý/nhẫn thuật thông thường) để luôn giữ độ thử thách cho dù người chơi có cấp độ hay trang bị cao.
-*   **3 Loại Cơ Chế Tinh Anh đặc trưng (Sẽ xuất hiện ở các Map thuộc Phase 3)**:
-    1.  **Tinh Anh Phân Thân (Màu Xanh Lá - Nhiễu loạn)**
-        *   *Cơ chế*: Khi HP dưới 50%, quái tự động tạo ra **2 phân thân ảo ảnh** giống hệt bản thể để làm nhiễu loạn nút khóa mục tiêu. Phân thân có HP rất thấp (1 đấm là chết) nhưng có lực đánh như thật. Bản thể thật vẫn giữ mũi tên đỏ khóa mục tiêu trên đầu.
-    2.  **Tinh Anh Địa Lôi (Màu Tím - Khống chế)**
-        *   *Cơ chế*: Định kỳ mỗi 6 giây, quái đập mạnh xuống đất tạo vùng năng lượng tím dưới chân người chơi. Đứng trong vùng này sẽ bị dính hiệu ứng **Trọng Lực (Khóa Bay và Nhảy)** trong 3 giây.
-    3.  **Tinh Anh Hộ Thuẫn (Màu Vàng Kim - Kháng chiêu)**
-        *   *Cơ chế*: Cứ mỗi 5 giây, quái xoay tua đổi lá chắn bảo vệ:
-            *   *Lá chắn Vật Lý (Cam)*: Miễn nhiễm hoàn toàn sát thương từ đòn **ĐẤM** (Đấm vào hiện chữ "BLOCK!").
-            *   *Lá chắn Nhẫn Thuật (Lam)*: Miễn nhiễm hoàn toàn sát thương từ đòn **CHƯỞNG**.
-*   **Phần thưởng**: Diệt quái Tinh Anh có tỷ lệ rớt Thần Thú Ngọc 4★, 5★, 6★ cao gấp 5 lần và cơ hội nhận mảnh Hồn Linh Thú hiếm. -->
+### H. Mã hóa Payload & Băm mã nguồn (Code Obfuscation & WSS)
+*   Bắt buộc sử dụng giao thức bảo mật **WSS (WebSocket Secure)** để mã hóa toàn bộ luồng dữ liệu trên đường truyền mạng, ngăn chặn việc đánh chặn và đọc gói tin nhị phân.
+*   Toàn bộ mã nguồn Javascript của Phaser Client được chạy qua công cụ băm mã nguồn nâng cao (`javascript-obfuscator`) để đổi tên biến, mã hóa chuỗi chữ và xáo trộn cấu trúc điều khiển, ngăn chặn dịch ngược code.
 
 ---
 
-## 6. CƠ CHẾ TRIỆU HỒI CÂY THẦN ẢO MỘNG & QUY TRÌNH SỞ HỮU NGỌC
+## 6. HỆ THỐNG NGOẠI LỆ KỸ THUẬT & HƯỚNG XỬ LÝ (EDGE CASES & MITIGATIONS)
 
-*   **Quy trình sở hữu 9 viên Thần Thú Ngọc**:
-    *   **Ngọc 1★, 2★, 3★ (Nhận từ nhiệm vụ chính)**: Được trao thưởng trực tiếp khi hoàn thành các nhiệm vụ chính tuyến tương ứng (Nhiệm vụ 4, Nhiệm vụ 6, Nhiệm vụ 9).
-    *   **Ngọc 4★, 5★, 6★ (Nhận từ cày cuốc & sự kiện)**: Có tỷ lệ rơi ngẫu nhiên khi cày quái tại các Map chiến đấu (từ Map 2 đến Map 12) hoặc mở rương thưởng từ Nhiệm Vụ Hằng Ngày (Daily Quest Chest).
-    *   **Ngọc 7★, 8★, 9★ (Chỉ có thể sở hữu thông qua GHÉP NGỌC)**: Không rơi trực tiếp từ bất kỳ nguồn nào. Người chơi phải vào giao diện nâng cấp/lò rèn để tiến hành ghép từ các viên cấp dưới:
-        *   **Ghép Ngọc 7★**: Tiêu tốn **9 viên Ngọc 4★**.
-        *   **Ghép Ngọc 8★**: Tiêu tốn **9 viên Ngọc 5★**.
-        *   **Ghép Ngọc 9★**: Tiêu tốn **9 viên Ngọc 6★**.
+Trong quá trình vận hành code thực tế và deploy, hệ thống có thể gặp các ngoại lệ kỹ thuật sau:
 
-*   **Cơ chế Kích hoạt (Vô Hạn Huyết Nguyệt)**:
-    1.  Đặt đủ 9 viên ngọc (từ 1★ đến 9★) lên Tế đàn cổ đại tại Làng Mộc (Map 1).
-    2.  Nhấn nút "Triệu Hồi":
-        *   Màn hình rung chuyển (Camera shake 2 giây).
-        *   Một nhánh **Cây Thần (Divine Tree)** khổng lồ phát sáng đỏ tím trồi lên từ mặt đất.
-        *   Nền trời game lập tức chuyển dần từ **Ban ngày sang Đêm Tối** (Day-to-night tint transition). Một **Vầng Trăng Máu khổng lồ (Blood Moon)** xuất hiện trên bầu trời đêm.
-        *   Các NPC xung quanh rơi vào trạng thái đứng yên bất động (ảo thuật).
-        *   **Thay đổi trạng thái Quái vật**: Sức đánh (sát thương gây ra cho nhân vật) của tất cả quái vật trên mọi bản đồ lập tức **tăng thêm 30%** (HP giữ nguyên) cho đến khi Ảo mộng kết thúc.
-    3.  Hiển thị Modal **"ẢO MỘNG ĐIỀU ƯỚC"** ở giữa màn hình.
-*   **Danh sách Mộng Ước**:
-    *   *Mộng ước Giàu Sang (Wealth)*: Nhận ngay 100 Ngọc (Gems) và 10,000 Vàng.
-    *   *Mộng ước Luân Hồi (Rebirth)*: Tẩy tủy hoàn trả 100% điểm Chakra kỹ năng.
-    *   *Mộng ước Chuyển Kiếp (Metempsychosis)*: Cho phép thay đổi Gia tộc của nhân vật (giữ nguyên Level).
-    *   *Mộng ước Ảo ảnh Ngoại trang (Cosmetics)*: Nhận ngay bộ cải trang độc quyền (**Áo Choàng Huyết Nguyệt** phát sáng hào quang đỏ nhấp nháy chuyển động chậm) chỉ có thể sở hữu duy nhất qua triệu hồi Cây Thần.
-*   **Kết thúc Ảo mộng**: Màn hình nháy sáng trắng (Flash white), Cây Thần biến mất, bầu trời **trở lại ban ngày mượt mà**, sức đánh của quái vật trở lại bình thường, phần thưởng được trao.
+### Ngoại lệ 1: Độ trễ mạng quá cao hoặc Ping Spike đột ngột (>300ms)
+*   *Vấn đề*: Khi ping người chơi vượt quá 300ms (ví dụ đứt cáp quang), việc quay ngược thời gian (Rollback) quá xa sẽ gây ra hiện tượng giật hình cực kỳ nghiêm trọng (quái vật liên tục biến hình, dịch chuyển tức thời trên màn hình người chơi khác).
+*   *Giải pháp*: Giới hạn lịch sử vị trí (History Buffer) tối đa là 1000ms. Nếu ping của người chơi gửi lên vượt quá 300ms, Server sẽ **tắt tính năng bù trễ (Lag Compensation)** đối với người chơi đó, áp dụng cơ chế xác thực vị trí hiện tại của server (nhận sát thương trễ) để bảo vệ trải nghiệm của những người chơi khác.
+
+### Ngoại lệ 2: Mất gói tin (Packet Loss) trên đường truyền
+*   *Vấn đề*: Do sử dụng giao thức TCP (WebSocket), gói tin bị mất sẽ kích hoạt cơ chế truyền lại (Retransmission) của hệ điều hành, gây ra hiện tượng nghẽn tạm thời và tăng ping đột ngột.
+*   *Giải pháp*: Thiết lập cơ chế Ping/Pong định kỳ mỗi 3 giây để đo RTT (Round Trip Time). Nếu phát hiện tỷ lệ mất gói tin cao, client tự động tăng thời gian đệm nội suy (Interpolation Buffer) từ 100ms lên 200ms để bù đắp khoảng trống dữ liệu bị thiếu trong lúc chờ TCP truyền lại.
+
+### Ngoại lệ 3: Sai số dấu phẩy động (Floating-Point Precision Mismatch)
+*   *Vấn đề*: Golang (chạy trên Server x64) và Javascript (chạy trên nhiều loại trình duyệt/thiết bị của Client) có thể tính toán các phép toán dấu phẩy động (float32/float64) ra kết quả lệch nhau vài phần triệu. Sau một thời gian di chuyển, vị trí của nhân vật trên client và server sẽ bị lệch (desync).
+*   *Giải pháp*: Sử dụng **Số nguyên dấu phẩy tĩnh (Fixed-Point Arithmetic)**. Toàn bộ tọa độ di chuyển, vận tốc, hitbox đều được nhân với 1,000 trước khi gửi và tính toán (ví dụ: tọa độ 250.5 pixel được lưu và tính toán dưới dạng số nguyên 250500). Server và Client hoàn toàn thực hiện các phép toán trên số nguyên `int32` để đảm bảo tính toán đồng nhất 100% trên mọi thiết bị.
 
 ---
 
-## 7. CƠ CHẾ THANH NỘ TỐI THƯỢNG (ULTIMATE RAGE AWAKENING)
+## 7. ƯỚC TÍNH CHI PHÍ SERVER & BĂNG THÔNG HẠ TẦNG
 
-Cơ chế cho phép người chơi tích lũy điểm Nộ trong giao tranh. Khi đầy nộ sẽ mở khóa ngẫu nhiên một trong bốn nhẫn thuật tối thượng cực kỳ bá đạo.
+Nhờ tối ưu hóa bằng Golang, Redis và Protobuf, chi phí vận hành hạ tầng game được giảm thiểu tối đa:
 
-*   **Tích Nộ**: Tấn công ĐẤM trúng đích nhận **+1.5 điểm**, CHƯỞNG trúng đích nhận **+4.0 điểm**, đòn chí mạng nhận **+2.0 điểm**. Bị quái đánh trúng nhận **+2.0 điểm mỗi 5% HP tối đa bị mất**.
-*   **Khóa Nộ 100%**: Khi thanh nộ đạt mức tối đa 100 điểm, cơ chế tụt giảm nộ ngoài giao tranh bằng 0 (người chơi có thể trữ nộ lâu dài để dành đánh Boss).
-*   **Kích Hoạt Ngẫu Nhiên**: Khi nhấn phím Thức Tỉnh, hệ thống quay ngẫu nhiên nhận 1 trong 4 trạng thái bá đạo trong **15 giây**:
-    1.  **BÁT MÔN CẤM THUẬT (8 Gates Release)**: Tốc độ đánh tăng 100%, sát thương Đấm thường **nhân 3 lần (X3)**. Hiệu ứng hào quang xanh lá bốc cháy dữ dội.
-    2.  **PHÂN THÂN CHI THUẬT (Multi-Clone)**: Triệu hồi **2 phân thân** giống hệt chạy song hành, tự động bắt chước 100% đòn đánh Đấm/Chưởng của bản thể gốc (gây 50% sát thương).
-    3.  **TIÊN NHÂN THỂ (Sage Mode)**: Tăng **50% hút máu (Lifesteal)** trên mỗi đòn đánh/chưởng, nhân đôi cự ly đánh của mọi kỹ năng. Có đường vân đỏ hiền giả ở hai khóe mắt.
-    4.  **TRIỆU HỒI THẦN THÚ (Beast Summoning)**: Đập tay xuống đất triệu hồi một Thần Thú Khổng Lồ độc lập chiến đấu tự động (AI tự đánh) with sát thương bằng 150% nhân vật:
-        *   *Mộc Linh Tộc*: Triệu hồi **Thần Cóc Khổng Lồ (Toad)** giậm nhảy sát thương diện rộng.
-        *   *Huyết Nhãn Tộc*: Triệu hồi **Cự Xà Thần (Serpent)** cắn quét đuôi sát thương đơn mục tiêu cực lớn.
-        *   *Bạch Nhãn Tộc*: Triệu hồi **Bạch Hổ Chiến Thần (Tiger)** vồ xé cào quái tốc độ cực nhanh.
+### A. Tính toán Băng thông (Bandwidth Math)
+*   **Với 1 người chơi hoạt động**:
+    *   Tần suất gửi tin: 20 gói/giây. Kích thước trung bình: 15 bytes (bao gồm cả overhead TCP).
+    *   Băng thông chiều lên (Upload): $20 \times 15 \text{ B} = 300 \text{ B/s} \approx 0.3 \text{ KB/s}$.
+    *   Băng thông chiều về (Download - nhờ lọc AOI chỉ gửi 5 đối tượng xung quanh): $20 \times 5 \times 15 \text{ B} = 1500 \text{ B/s} \approx 1.5 \text{ KB/s}$.
+    *   Tổng băng thông cho 1 người chơi: $\approx 1.8 \text{ KB/s}$.
+*   **Với 1,000 người chơi đồng thời (1,000 CCU)**:
+    *   Tổng băng thông yêu cầu: $1,000 \times 1.8 \text{ KB/s} = 1,800 \text{ KB/s} \approx 1,800 \text{ KB/s} \approx 1.8 \text{ MB/s} \approx 14.4 \text{ Mbps}$.
+    *   Hầu hết các gói VPS giá rẻ hiện nay đều cung cấp băng thông từ 1 Gbps đến 10 Gbps (hạn mức traffic từ 1TB đến 3TB/tháng). Với 1,000 CCU chạy 24/7, tổng lưu lượng hàng tháng là:
+        $$1.8 \text{ MB/s} \times 3600 \text{s} \times 24 \text{h} \times 30 \text{ ngày} \approx 4.6 \text{ TB/tháng}.$$
+        Chi phí phụ trội băng thông chỉ tốn khoảng $5 - $10/tháng.
 
----
-
-## 8. HỆ THỐNG HỒN LINH THÚ (SPIRIT SOULS)
-
-Hệ thống Hồn Linh Thú (thay thế cho Ngọc Hồn Thú cũ) cung cấp chiều sâu cày cuốc trang bị thông qua các thuộc tính ẩn và hiệu ứng hình ảnh riêng biệt khi khảm nạp:
-
-### A. Phân Loại Hồn Linh Thú & Thuộc Tính Khảm Nạp
-Mỗi loại Hồn Linh Thú khi được khảm vào trang bị (Vũ khí, Giáp, Trang sức) sẽ kích hoạt một thuộc tính ẩn bổ trợ và một hiệu ứng hình ảnh phát sáng đặc thù xung quanh nhân vật:
-
-| Tên Hồn Linh Thú | Thuộc Tính Kích Hoạt | Hiệu Ứng Hình Ảnh Đặc Trưng |
-| :--- | :--- | :--- |
-| **Thạch Yêu Hồn Linh** | +15% Phòng thủ Vật lý & +10% Max HP | Tạo một lớp giáp đá mỏng, nhấp nhô mờ bao bọc quanh thân nhân vật khi chiến đấu. |
-| **Lôi Tộc Hồn Linh** | +10% Tỷ lệ Chí mạng & +15% Dame Chí mạng | Tạo ra các tia sét điện nhỏ màu xanh lam thỉnh thoảng xẹt phát sáng chạy dọc quanh người. |
-| **Hỏa Hồ Hồn Linh** | +12% Sức Đánh (ATK) & +5% Tốc chạy | Tạo hiệu ứng hào quang lửa cháy âm ỉ màu đỏ cam dưới chân nhân vật. |
-| **Băng Quy Hồn Linh** | +10% Kháng sát thương & 15% cơ hội đóng băng mục tiêu (giảm 20% tốc chạy của quái trong 2s) | Tạo các bông tuyết nhỏ rơi nhẹ xung quanh nhân vật và để lại dấu chân băng mờ. |
-
-### B. Cuộn Thư Nhiệm Vụ Hằng Ngày (Daily Quest Scrolls)
-Để thu thập Hồn Linh Thú, người chơi cần tham gia làm nhiệm vụ từ các Cuộn Thư Nhập Vai:
-*   **Phân Cấp Cuộn Thư**: Gồm 5 cấp độ D, C, B, A, S. Cấp càng cao, phần thưởng mảnh Hồn Linh Thú càng hiếm.
-*   **Cơ chế Nhận Nhiệm Vụ**: Mở cuộn thư sẽ ngẫu nhiên nhận một nhiệm vụ có điều kiện khắc nghiệt nhằm kích thích tư duy nhẫn giả:
-    *   *Nhiệm vụ cấp D/C*: Tiêu diệt quái thường bằng các đòn cận chiến (Đấm) hoặc Chưởng.
-    *   *Nhiệm vụ cấp B/A*: Tiêu diệt quái dưới nước (rơi nước làm giảm 30% tốc đánh/thi triển) hoặc tiêu diệt quái chỉ bằng 1 kỹ năng duy nhất.
-    *   *Nhiệm vụ cấp S*: Vượt qua phó bản trong thời gian giới hạn dưới 3 phút mà không được phép dùng bình hồi phục HP/Mana.
+### B. Tính toán CPU & RAM
+*   **Bộ nhớ RAM**:
+    *   Mỗi kết nối Golang Goroutine + Websocket: ~10KB RAM. Với 1,000 CCU tốn ~10MB RAM.
+    *   Redis Cache lưu 1,000 người chơi online: ~50MB RAM.
+    *   MongoDB đệm dữ liệu: ~500MB RAM.
+    *   Tổng RAM hệ thống thực tế yêu cầu: < 1GB RAM.
+*   **Năng lực xử lý CPU**:
+    *   Do chỉ xử lý tính toán hitbox bằng toán học cơ bản (khoảng cách Euclide và Binary Grid), 1 CPU Core của VPS có thể dễ dàng xử lý hàng chục nghìn phép tính va chạm mỗi giây.
+*   **Khuyến nghị Cấu hình VPS Deploy**:
+    *   *Giai đoạn Alpha (Dưới 100 CCU)*: VPS cấu hình 1 Core CPU, 1GB RAM (Chi phí: ~$5/tháng).
+    *   *Giai đoạn Beta/Bàn giao (Dưới 1,000 CCU)*: VPS cấu hình 2 Core CPU, 2GB RAM (Chi phí: ~$10 - $15/tháng).
+    *   *Giai đoạn Launching (1,000 - 3,000 CCU)*: VPS cấu hình 4 Core CPU, 8GB RAM (Chi phí: ~$40/tháng).
 
 ---
 
-## 9. CHIẾN DỊCH TỔ ĐỘI: DOANH TRẠI U ÁM LÂM (CO-OP GAUNTLET RAID)
+## 8. HỆ THỐNG TRANG BỊ VÀ CƯỜNG HÓA THEO GIA TỘC (CLAN EQUIPMENT & ENHANCEMENT SYSTEM)
 
-Tính năng phó bản tổ đội cày cuốc Chakra và săn Thần Thú Ngọc trung cấp (4★, 5★, 6★), có thời gian giới hạn **60 phút**, yêu cầu tổ đội **2-8 người** (tối đa 8 người tương đương với bang phái, tối thiểu phải từ 2 người trở lên cùng đi, không thể đi solo). Bản đồ gồm **4 bản đồ lớn liên thông**, mỗi bản đồ lớn chia thành **3-4 bản đồ nhỏ**.
+Để củng cố tiến trình nhân vật từ cấp 1 đến 90 và tạo sự khác biệt sâu sắc trong lối chơi của từng gia tộc, hệ thống trang bị được thiết kế như sau:
 
-### A. Công thức Cân Bằng Động (Dynamic Stat Scaling)
-Để đảm bảo phó bản luôn giữ nguyên độ khó thử thách tương xứng với số lượng và chỉ số của người chơi trong tổ đội:
-*   **HP tối đa của Quái vật** tỷ lệ thuận theo **Sát thương lớn nhất trong tổ đội**:
-    $$\text{Quái\_HP} = \text{Base\_HP} + (\text{Max\_Damage\_in\_Party} \times 15) \times \text{Party\_Size}$$
-*   **Sức đánh (Sát thương) của Quái vật** tỷ lệ thuận theo **HP lớn nhất trong tổ đội**:
-    $$\text{Quái\_ATK} = \text{Base\_ATK} + (\text{Max\_HP\_in\_Party} \times 0.05) \times (1 + (\text{Party\_Size} - 1) \times 0.1)$$
+### A. Phân cấp Trang bị theo 9 Nhẫn Cấp (9 Equipment Tiers)
+*   Trang bị trong game được phân chia thành **9 Tier** tương ứng với 9 Nhẫn Cấp (từ Học Viên đến Lục Đạo). Người chơi bắt buộc phải đạt Nhẫn Cấp tương ứng mới có thể trang bị vật phẩm của Tier đó.
+*   Mỗi bộ trang bị đầy đủ của người chơi sẽ bao gồm đúng **6 bộ phận nhẫn giả đặc trưng**: **Băng đeo trán (Headband)**, **Áo (Ninja Shirt)**, **Quần (Ninja Pants)**, **Găng tay (Gloves)**, **Giày (Shoes)**, và **Nhẫn cụ (Ninja Tool)**.
 
-### B. Lộ trình Vượt Ải (4 Map lớn và các Map nhỏ phụ bản)
+### B. Chế Tạo Đồ Theo Linh Hồn Thần Thú (Beast-Forged Equipment)
+*   **Quy luật Số đuôi & Sức mạnh (Tail-to-Power Progression)**: Số lượng đuôi của Thần Thú tỉ lệ thuận với lượng Chakra nguyên tố và sức mạnh thần bí mà nó sở hữu. Nhất Vĩ (1 Đuôi) có sức mạnh cơ bản thấp nhất, tăng tiến dần đến Cửu Vĩ (9 Đuôi) có nguồn Chakra hỗn độn vô hạn và sức mạnh hủy thiên diệt địa vượt trội. Tiến trình sức mạnh này tương ứng trực tiếp với cấp độ và độ khó của các phó bản Gauntlet Raid và Boss Thế Giới từ cấp 1 đến 90.
+*   **Danh sách 9 Thượng Cổ Thần Thú & Phân bổ quốc gia**:
+    1.  **Nhất Vĩ Thạch Tê (1 Đuôi - Hệ Thổ)**: Trú ẩn dưới cát sâu trong cổ mộ hoang mạc Sa Cát Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 1** (Học Viên, Level 1-10).
+    2.  **Nhị Vĩ Hỏa Miêu (2 Đuôi - Hệ Hỏa)**: Trú sâu trong hồ dung nham Hỏa Liên Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 2** (Hạ Nhẫn, Level 11-20).
+    3.  **Tam Vĩ Thủy Quy (3 Đuôi - Hệ Thủy)**: Bảo vệ Hồ Băng Vạn Niên Thủy Nguyệt Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 3** (Trung Nhẫn, Level 21-30).
+    4.  **Tứ Vĩ Độc Nhện (4 Đuôi - Hệ Độc/Thép)**: Trú trong hang động ẩm ướt U Đầm Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 4** (Thượng Nhẫn, Level 31-40).
+    5.  **Ngũ Vĩ Lôi Hầu (5 Đuôi - Hệ Lôi)**: Trú trên các đỉnh núi bão sét Hỏa Liên Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 5** (Ám Bộ, Level 41-50).
+    6.  **Lục Vĩ Mộc Độc Linh Ngạc (6 Đuôi - Hệ Mộc/Độc)**: Thống trị đầm lầy sương mù U Đầm Quốc. Hình dạng cá sấu khổng lồ di chuyển bằng 4 chân bọc vảy thép vững chãi, lưng mọc đầy gai gỗ bám rêu phong và 6 chiếc đuôi cá sấu dẹp khỏe khoắn. Hồn thú phục vụ chế tạo trang bị **Tier 6** (Huyền Thoại, Level 51-60).
+    7.  **Thất Vĩ Băng Phong (7 Đuôi - Hệ Băng)**: Chim phượng hoàng tuyết làm tổ trên đỉnh núi tuyết cao nhất Thủy Nguyệt Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 7** (Nhẫn Ảnh, Level 61-70).
+    8.  **Bát Vĩ Hải Linh (8 Đuôi - Hệ Phong/Thủy)**: Thân rồng có 4 chân và 8 đuôi xúc tu bạch tuộc khổng lồ, ngự trị Vực Sâu Đại Dương Hải Phong Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 8** (Tiên Nhân, Level 71-80).
+    9.  **Cửu Vĩ Thiên Hồ (9 Đuôi - Hệ Hỗn Độn)**: Cáo chín đuôi khổng lồ ngự trị tại Thánh Địa Long Mạch Trung Tâm Mộc Vân Quốc. Hồn thú phục vụ chế tạo trang bị **Tier 9** (Nhẫn Thần, Level 81-90).
+*   **Cơ chế rèn đồ**: Người chơi thu thập nguyên liệu rèn đặc thù rơi ra từ các Boss hoặc Gauntlet Raid tương ứng với Thần Thú của Tier đó để đúc hoặc nâng cấp phôi đồ tại giao diện Lò rèn.
+*   **Thời trang & Hào quang đặc trưng**: Trang bị đúc từ hồn thần thú sẽ mang hoa văn và hiệu ứng hào quang của linh thú đó (Ví dụ: Đồ đúc từ Nhị Vĩ Hỏa Miêu tỏa tia lửa xanh lam nhạt, đồ Tam Vĩ Thủy Quy có vòng gợn nước dưới chân khi chạy, đồ Cửu Vĩ tỏa hào quang vàng kim rực rỡ).
 
-Người chơi phải dọn dẹp quái vật và hoàn thành thử thách ở mỗi map nhỏ (3-4 map nhỏ mỗi vùng) mới mở portal sang map nhỏ tiếp theo. Map nhỏ cuối cùng của mỗi vùng lớn sẽ chứa Boss gác cổng. Tiêu diệt Boss này mới mở lối đi sang Map lớn tiếp theo.
 
-1.  **MAP LỚN 1: BIÊN GIỚI LÀNG MỘC (Gồm 3 map nhỏ)**
-    *   *Các map nhỏ 1A, 1B*: Tiêu diệt lính gác tuần tra Sa Cát Thôn và bảo vệ xe hàng qua cạm bẫy.
-    *   *Map nhỏ 1C (Boss phụ)*: Cổng ra bị khóa bởi kết giới nối với 2 Trụ Phép trên vách đá cao. Tổ đội phải có ít nhất 1 người dùng kỹ năng **Bay** lên phá hủy trụ phép (tiêu tốn mana liên tục), trong khi những người còn lại ở dưới đất chiến đấu thu hút quái vật và hạ gục Thượng Nhẫn Sa Cát Thôn (Boss phụ).
-2.  **MAP LỚN 2: THUNG LŨNG CÁT LÀNG PHONG (Gồm 3 map nhỏ)**
-    *   *Các map nhỏ 2A, 2B*: Vượt địa hình hoang mạc/đầm lầy cát lún độc hại (nếu rơi xuống nước cát lún mất 10% HP/giây). Đòn đấm của quái vật có hiệu ứng đẩy lùi.
-    *   *Map nhỏ 2C (Boss phụ)*: Trận chiến với Thượng Nhẫn Sa Mạc trên các bục đá di động. Người chơi phải liên tục nhảy bục và giữ cự ly để tránh bị đấm rơi xuống vùng cát lún độc.
-3.  **MAP LỚN 3: DÒNG SÔNG CẦU HỎA TUYẾN (Gồm 4 map nhỏ)**
-    *   *Các map nhỏ 3A, 3B, 3C*: Sử dụng kỹ năng **Đi Trên Nước** chiến đấu trực diện với thủy quái do Hắc Thạch Thôn triệu hồi. Nếu Mana < 40%, bị rơi xuống nước thì tốc độ đánh/thi triển chiêu bị giảm 30% so với bình thường.
-    *   *Map nhỏ 3D (Boss phụ)*: Tổ đội phải chia làm 2 ngả độc lập: Ngả trên không (người bay kích hoạt cần gạt) và Ngả mặt nước (người đi trên nước chiến đấu). Cả hai ngả phải hạ Boss Thủy Quái cùng lúc để mở cổng sang Tế Đàn Làng Thổ.
-4.  **MAP LỚN 4: TẾ ĐÀN LÀNG THỔ (Gồm 3 map nhỏ)**
-    *   *Các map nhỏ 4A, 4B*: Vượt qua các Vệ Binh Đất Đá tuần tra với sát thương cực lớn.
-    *   *Map nhỏ 4C (BOSS ĐẠI CHIẾN)*: Tiêu diệt **Boss Thần Tướng Sa Đọa (Dạng Cực Hạn)** của Hắc Thạch Thôn. Khi HP Boss xuống dưới 50%, Boss phân thân thành 3 bản thể (Lửa, Gió, Linh Hồn). Tổ đội phải phối hợp hạ cả 3 bản thể trong vòng 10 giây cùng lúc để giành chiến thắng.
+### C. Tiến trình Cường Hóa trang bị bằng Chakra
+*   Để gia tăng sức mạnh của trang bị, người chơi có thể tiến hành **Cường hóa trang bị** lên các cấp bậc `+1, +2, +3...` giống như các dòng game MMORPG truyền thống thông qua giao diện lò rèn.
+*   **Nguyên liệu cường hóa**: Quá trình cường hóa tiêu tốn **Chakra tích lũy** (EXP cày cuốc) và **Vàng** (hoặc Đá Cường Hóa rớt từ phó bản Co-op).
+*   **Chỉ số cộng thêm**: Mỗi cấp cường hóa thành công tăng trực tiếp chỉ số cơ bản của trang bị (ATK cho Găng tay và Nhẫn cụ; HP và DEF phòng thủ cho Áo, Quần, Giày và Băng đeo trán). Cấp cường hóa không bị giới hạn cứng theo level người chơi mà phụ thuộc vào tài nguyên tích lũy và tỷ lệ thành công của lò rèn.
 
-### C. Phần thưởng chiến dịch
-*   Nhân **300% lượng Chakra** nhận được (tự động cộng thẳng vào ví khi diệt quái).
-*   Nhận **Rương Linh Thú Tối Cao**:
-    *   Đảm bảo mở ra nhận ngẫu nhiên **Thần Thú Ngọc 4★, 5★ hoặc 6★**.
-    *   Có tỷ lệ rơi mảnh Hồn Linh Thú cao cấp để dùng kích hoạt dòng thuộc tính ẩn và hiệu ứng hào quang nhẫn giả đặc trưng.
+### D. Các Cơ Chế Bổ Trợ Trang Bị (Chỉ số phụ, Tẩy luyện, Phân rã, Luật cường hóa)
+Để tạo chiều sâu cày cuốc và đa dạng hóa cách xây dựng nhân vật, hệ thống trang bị tích hợp 4 cơ chế vận hành sau:
+
+1.  **Chỉ số phụ ngẫu nhiên (Random Sub-stats/Affixes)**:
+    *   Mỗi trang bị từ Tier 2 trở lên khi rơi ra từ quái hoặc được chế tạo thành công sẽ ngẫu nhiên sở hữu từ **1 đến 3 dòng chỉ số phụ (Sub-stats)** bên cạnh chỉ số chính cố định.
+    *   Chỉ số phụ gia tăng các thuộc tính đặc thù bổ trợ lối chơi: Tỷ lệ Né tránh, Tốc độ đánh, Tốc độ di chuyển, Tỷ lệ Chí mạng, Sát thương Chí mạng, Hút máu (Lifesteal), hoặc Tốc độ hồi phục Mana.
+2.  **Tẩy luyện thuộc tính phụ (Reforging/Re-rolling)**:
+    *   Người chơi có thể thay đổi ngẫu nhiên các dòng chỉ số phụ của trang bị tại giao diện Lò rèn bằng cách tiêu tốn **Chakra tích lũy** và **Vàng**.
+    *   **Quy tắc**: Tẩy luyện có **tỷ lệ thành công cố định là 20%**:
+        *   *Nếu thành công (20%)*: Các dòng chỉ số phụ của trang bị sẽ được làm mới ngẫu nhiên sang thuộc tính và giá trị trị số mới.
+        *   *Nếu thất bại (80%)*: Các dòng chỉ số phụ của trang bị giữ nguyên không thay đổi, người chơi mất toàn bộ lượng Chakra và Vàng đã tiêu tốn cho lượt tẩy đó.
+3.  **Phân rã trang bị & Tái chế nguyên liệu (Salvaging & Recycling)**:
+    *   Người chơi có thể phân rã các trang bị không sử dụng hoặc trang bị cấp thấp (đồ rác cày map) để dọn dẹp túi đồ và thu hồi nguyên liệu.
+    *   *Thu hoạch*: Phân rã hoàn lại một lượng nhỏ **Chakra** và tạo ra **Mảnh Sắt / Mảnh Vải Rèn (Crafting Scraps)** dùng để chế tạo phôi trang bị mới.
+4.  **Quy tắc Thất bại khi Cường hóa (Enhancement Failure Rules)**:
+    *   Cường hóa từ cấp bậc `+1` đến `+5` có tỷ lệ thành công là 100%.
+    *   Cường hóa từ cấp bậc `+6` trở lên có tỷ lệ thất bại tương ứng theo cấp cộng tăng dần.
+    *   **Khi Cường hóa Thất bại (Đập xịt)**:
+        *   **Cấp cường hóa hiện tại của trang bị được giữ nguyên** (không bị tụt cấp cộng, không bị giảm chỉ số, không bị vỡ hay phá hủy trang bị).
+        *   Tuy nhiên, người chơi sẽ **mất toàn bộ các phụ kiện cường hóa đập kèm** (như bùa bảo vệ, đá tăng tỷ lệ) cùng lượng Vàng và Chakra tiêu tốn cho lượt đập đó.
+
+### E. Bảng Tên Gọi Hệ Thống Trang Bị 6 Món Theo 9 Cấp Bậc (9 Tiers Equipment Names)
+
+Dưới đây là danh sách tên gọi chi tiết cho từng món trang bị của 3 Gia tộc qua 9 cấp bậc (Tier 1 đến Tier 9):
+
+#### 1. Mộc Linh Tộc (Tộc Hệ Mộc / Đất - Chỉ số ưu tiên: HP tối đa, Thủ vật lý, Giảm sát thương)
+
+| Cấp Bậc (Tier) | Nhẫn Cấp Tương Ứng | Băng Đeo Trán (Headband) | Áo (Shirt) | Quần (Pants) | Găng Tay (Gloves) | Giày (Shoes) | Nhẫn Cụ (Ninja Tool) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Tier 1** | Học Viên (Lvl 1-10) | Băng Trán Gỗ Mộc | Áo Thiết Mộc | Quần Thiết Mộc | Băng Tay Vải Thô | Giày Vải Thô | Phi Tiêu Gỗ |
+| **Tier 2** | Hạ Nhẫn (Lvl 11-20) | Băng Trán Lục Diệp | Giáp Lá Thanh Diệp | Quần Lá Thanh Diệp | Băng Tay Da Rừng | Giày Da Rừng | Trọng Thiết Trảo |
+| **Tier 3** | Trung Nhẫn (Lvl 21-30) | Băng Trán Hộ Vệ | Giáp Gỗ Bạch Đàn | Quần Gỗ Bạch Đàn | Bao Tay Bạch Đàn | Bốt Gỗ Bạch Đàn | Trọng Thiết Đao |
+| **Tier 4** | Thượng Nhẫn (Lvl 31-40) | Băng Trán Địa Long | Giáp Thạch Thổ | Quần Thạch Thổ | Hộ Thủ Địa Long | Bốt Thạch Thổ | Địa Long Trọng Phủ |
+| **Tier 5** | Ám Bộ (Lvl 41-50) | Mặt Nạ Ám Bộ Mộc | Giáp Kim Cương Gỗ | Quần Kim Cương Gỗ | Hộ Thủ Kim Thạch | Giày Điêm Thạch | Cự Thiết Kiếm |
+| **Tier 6** | Huyền Thoại (Lvl 51-60) | Băng Trán Cổ Thụ | Giáp Vạn Niên Mộc | Quần Vạn Niên Mộc | Hộ Thủ Cổ Thụ | Giày Cổ Thụ | Cổ Thụ Thiên Trượng |
+| **Tier 7** | Nhẫn Ảnh (Lvl 61-70) | Băng Trán Sơn Thần | Giáp Sơn Thạch Quy | Quần Sơn Thạch Quy | Hộ Thủ Sơn Thần | Bốt Sơn Thạch | Sơn Thần Cự Phủ |
+| **Tier 8** | Tiên Nhân (Lvl 71-80) | Băng Trán Tiên Nhân | Giáp Hộ Thể Tiên Nhân | Quần Hộ Thể Tiên Nhân | Hộ Thủ Tiên Lực | Giày Tiên Thể | Thần Mộc Thượng Kiếm |
+| **Tier 9** | Nhẫn Thần (Lvl 81-90) | Băng Trán Hoàng Thiên | Pháp Giáp Hoàng Thổ Thiên Giới | Pháp Quần Hoàng Thổ Thiên Giới | Hộ Thủ Thiên Giới Hoàng Thiên | Bốt Hoàng Thổ Thiên Giới | Thiên Giới Thần Thương |
+
+##### *Prompts Sinh Ảnh AI (Gemini/Imagen) - Thiết kế Spine2D (T-Pose & Inpaint)*
+*   **Quy trình dựng hình Spine2D**:
+    1.  **Gen ảnh gốc (Base T-Pose)**: Sử dụng Base Prompt để tạo 1 ảnh nhân vật T-pose/A-pose toàn thân, đồng nhất ánh sáng, tỷ lệ và phong cách nghệ thuật.
+    2.  **Inpaint tinh chỉnh (Inpaint Detail)**: Sử dụng Inpaint Prompt Guide để vẽ đè và tinh chỉnh chi tiết trực tiếp từng vùng (Áo, Quần, Găng tay, Giày, Băng trán, Nhẫn cụ) trên CÙNG 1 ảnh gốc, giữ nguyên tư thế và tỷ lệ cơ thể.
+    3.  **Tách Layer & Generative Fill**: Tách thủ công các layer trong Photoshop và dùng Generative Fill để vẽ bù các phần bị che khuất trước khi xuất PNG đưa vào Spine.
+*   **Base Prompt Template**: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. [Character Outfit & Gear Details]. Hands are empty, open palms facing forward with fingers spread. Low collar showing clear neck skin. Sleeves show a clear gap of skin at the wrists. Belt is aligned flat on the waist. All weapons and accessories are generated as separate floating objects next to the character. --no watermark, text`
+*   **Chi tiết Prompt từng Tier (Base T-Pose & Inpaint Guides)**:
+    *   **Tier 1 (Học Viên)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A young Mộc Linh Clan apprentice ninja. Wearing a green shinobi shozoku (ninja garment) with a low collar showing neck skin, matching pants, a moss-green cowl mask covering the nose and mouth, rough wood-fiber wrist wraps showing wrist skin, and rope sandals. Green cloth headband with a simple wooden protector plate. Hands are empty, open palms facing forward. A wooden shuriken is generated as a separate floating object next to the character. Color palette: flat moss green, flat earth brown, flat oak wood brown.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Moss green cloth headband, simple carved oak plate protector, high detail`
+            *   *Áo*: `Green shinobi shozoku shirt, low collar showing neck skin`
+            *   *Quần*: `Green shinobi shozoku pants, flat waistline`
+            *   *Găng tay*: `Rough wood-fiber wrist wraps, showing wrist skin separation`
+            *   *Giày*: `Flat ninja sandals made of dark green and brown hemp ropes`
+            *   *Nhẫn cụ*: `Carved wooden shuriken weapon, generated next to the hand, not held`
+    *   **Tier 2 (Hạ Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Mộc Linh Clan genin ninja. Wearing light leaf-woven stealth armor (low collar showing neck skin), a dark green fabric mask covering the nose and mouth, green leaf-patterned leather pants, forest green wrist guards showing wrist skin, forest green leather boots. Green cloth headband with a leaf-shaped copper plate. Hands are empty, open palms facing forward. An iron claw weapon is generated as a separate floating object next to the character. Color palette: flat forest green, flat leather brown, flat copper.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Forest green cloth headband, green leaf-shaped copper plate, high detail`
+            *   *Áo*: `Light ninja shirt made of woven green leaves, low collar showing neck skin`
+            *   *Quần*: `Light ninja pants made of green leaves, flat waistline`
+            *   *Găng tay*: `Forest green leather wrist guards, showing wrist skin separation`
+            *   *Giày*: `Forest green leather ninja boots, flexible sole`
+            *   *Nhẫn cụ*: `Iron claw weapon (tekko-kagi) with forest green steel blades, generated next to the hand, not held`
+    *   **Tier 3 (Trung Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Mộc Linh Clan chunin ninja. Wearing a birch-wood plated ninja armor tunic (low collar showing neck skin), an olive-green cowl covering the neck and lower face, matching pants with birch-wood knee guards, birch-wood plated fingerless gloves showing wrist skin, high boots made of white-birch bark. Headband with white-birch wood protector plate. Hands are empty, open palms facing forward. A heavy iron cleaver sword is generated as a separate floating object next to the character. Color palette: flat olive green, flat white-birch wood, flat steel gray.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Olive green headband, polished white-birch wood protector plate, high detail`
+            *   *Áo*: `Birch-wood plated ninja armor tunic, V-neck showing neck skin, olive green underlay`
+            *   *Quần*: `Ninja pants with birch-wood knee guards, flat waistline`
+            *   *Găng tay*: `Birch-wood plated fingerless gloves, showing wrist skin separation`
+            *   *Giày*: `High ninja boots made of white-birch bark and green leather`
+            *   *Nhẫn cụ*: `Heavy iron cleaver sword, birch-wood handle, generated next to the hand, not held`
+    *   **Tier 4 (Thượng Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Mộc Linh Clan jonin ninja. Wearing heavy jade-plated shinobi armor vest, a jade-green cowl covering the neck and lower face (low collar showing neck skin), matching pants with dragon scale patterns, heavy stone gauntlets showing wrist skin, heavy stone boots. Headband with a dark stone earth dragon plate. Hands are empty, open palms facing forward. A massive battleaxe is generated as a separate floating object next to the character. Color palette: flat jade green, flat stone gray, flat dark slate.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Deep jade green headband, dark stone plate carved with earth dragon motif`
+            *   *Áo*: `Heavy stone-plated ninja vest, low collar showing neck skin, jade green scale patterns`
+            *   *Quần*: `Heavy stone-plated ninja pants, flat waistline, jade green scale patterns`
+            *   *Găng tay*: `Heavy stone gauntlets, showing wrist skin separation`
+            *   *Giày*: `Heavy stone-plated ninja boots, jade green accents, sturdy sole`
+            *   *Nhẫn cụ*: `Heavy battleaxe made of dark stone and jade, generated next to the hand, not held`
+    *   **Tier 5 (Ám Bộ)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. An elite shadow spec-ops wood ninja wearing a stylized owl porcelain mask. Wearing a dark green armored tactical utility vest over a breathable black mesh fabric undergarment (V-neck showing neck skin), matching pants with iron-wood shin protectors, iron-wood gauntlets showing wrist skin, scale mail boots. Hands are empty, open palms facing forward. A long ninja sword is generated as a separate floating object next to the character. Color palette: flat dark green, flat charcoal gray, flat wood brown.`
+        - *Inpaint Guides*:
+            *   *Băng trán (Mặt nạ)*: `Stylized owl porcelain mask, green and black highlights`
+            *   *Áo*: `Dark green tactical utility vest, V-neck showing neck skin, black mesh fabric undergarment`
+            *   *Quần*: `Dark green ninja pants with iron-wood shin protectors`
+            *   *Găng tay*: `Dark green iron-wood gauntlets, showing wrist skin separation`
+            *   *Giày*: `Silent dark green boots made of scale mail`
+            *   *Nhẫn cụ*: `Long ninja sword made of dark green steel with diamond-wood hilt, generated next to the hand, not held`
+    *   **Tier 6 (Huyền Thoại)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A legendary wood ninja warrior. Wearing a shirt and pants made of woven ancient elderwood plates (low collar showing neck skin) with glowing green veins, elderwood arm guards and boots, and a crown-like headband of glowing elderwood with an emerald gem. Hands are empty, open palms facing forward. A magical elderwood staff is generated as a separate floating object next to the character. Color palette: flat emerald green, flat elderwood brown, flat glowing lime green.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Ancient crown-like headband made of glowing green elderwood, emerald gem`
+            *   *Áo*: `Legendary ninja shirt made of woven ancient elderwood plates, V-neck showing neck skin`
+            *   *Quần*: `Legendary ninja pants made of ancient elderwood plates`
+            *   *Găng tay*: `Elderwood arm guards, showing wrist skin separation`
+            *   *Giày*: `Elderwood plated boots with glowing green magical roots wrapping the ankles`
+            *   *Nhẫn cụ*: `Magical elderwood staff, glowing green crystal floating at the tip, generated next to the hand, not held`
+    *   **Tier 7 (Nhẫn Ảnh)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A supreme wood ninja grandmaster. Wearing a ceremonial grandmaster armor vest made of stone-shell turtle plates (V-neck showing neck skin) over a pine green silk robe, matching pants with gold thread embroidery, grandmaster gauntlets showing wrist skin, pine green steel boots. Headband with a grandmaster forehead protector plate. Hands are empty, open palms facing forward. A massive twin-headed pine-green battleaxe is generated as a separate floating object next to the character. Color palette: flat pine green, flat gold, flat jade green.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Deep pine green headband, grandmaster forehead protector plate, mountain god runes`
+            *   *Áo*: `Ceremonial grandmaster armor vest made of stone-shell turtle plates, V-neck showing neck skin, pine green silk`
+            *   *Quần*: `Majestic Kage pants, pine green silk with gold thread embroidery`
+            *   *Găng tay*: `Grandmaster gauntlets, pine green steel plates, showing wrist skin separation`
+            *   *Giày*: `Heavy stone Kage boots, golden linings, pine green straps`
+            *   *Nhẫn cụ*: `Massive twin-headed battleaxe, pine green steel blade, generated next to the hand, not held`
+    *   **Tier 8 (Tiên Nhân)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. An ascended woodland sage ninja. Wearing lightweight sage robes and pants (V-neck showing neck skin) made of green silk with golden celestial embroidery, lime green energy gloves, grass-woven sage sandals, and a headband with a grandmaster forehead protector. Hands are empty, open palms facing forward. A divine wood sword is generated as a separate floating object next to the character. Color palette: flat lime green, flat gold, flat emerald green.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Sage headband with a grandmaster forehead protector, lime green glowing aura`
+            *   *Áo*: `Lightweight sage robe shirt, green silk, V-neck showing neck skin`
+            *   *Quần*: `Sage pants, green silk, golden wind patterns`
+            *   *Găng tay*: `Fingerless sage gloves, showing wrist skin separation`
+            *   *Giày*: `Sage sandals, glowing green grass-woven material`
+            *   *Nhẫn cụ*: `Divine wood sword, generated next to the hand, not held`
+    *   **Tier 9 (Nhẫn Thần)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A divine transcendent wood deity ninja. Wearing transcendent deity plate armor shirt and pants (low collar showing neck skin) with glowing yellow-gold energy plates, emerald green flowing chakra cape, yellow-gold and green scale gauntlets showing wrist skin, matching boots. Headband with a transcendent deity forehead protector plate. Hands are empty, open palms facing forward. A ringed deity scepter is generated as a separate floating object next to the character. Color palette: flat yellow-gold, flat emerald green, flat light green.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Deity forehead protector plate, bright emerald green fabric`
+            *   *Áo*: `Transcendent deity armor shirt, V-neck showing neck skin, yellow-gold plates`
+            *   *Quần*: `Six-Paths divine pants, emerald green fabric, yellow-gold chakra patterns`
+            *   *Găng tay*: `Deity gauntlets, yellow-gold and emerald green scales, showing wrist skin separation`
+            *   *Giày*: `Six-Paths boots, bright green chakra soles, yellow-gold metallic details`
+            *   *Nhẫn cụ*: `Ringed deity scepter made of dark wood, generated next to the hand, not held`
+
+#### 2. Huyết Nhãn Tộc (Tộc Hệ Hỏa / Ảo thuật - Chỉ số ưu tiên: Sức đánh ATK, Tỷ lệ Chí mạng, Dame Chí mạng)
+
+| Cấp Bậc (Tier) | Nhẫn Cấp Tương Ứng | Băng Đeo Trán (Headband) | Áo (Shirt) | Quần (Pants) | Găng Tay (Gloves) | Giày (Shoes) | Nhẫn Cụ (Ninja Tool) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Tier 1** | Học Viên (Lvl 1-10) | Băng Trán Hỏa Tinh | Áo Vải Đỏ | Quần Vải Đỏ | Băng Tay Vải Đỏ | Giày Vải Đỏ | Hỏa Tinh Phi Tiêu |
+| **Tier 2** | Hạ Nhẫn (Lvl 11-20) | Băng Trán Hỏa Liên | Áo Hỏa Liên | Quần Hỏa Liên | Hộ Thủ Hỏa Liên | Giày Hỏa Liên | Hỏa Liên Nhẫn Đao |
+| **Tier 3** | Trung Nhẫn (Lvl 21-30) | Băng Trán Hồng Diệp | Áo Hắc Y Hỏa Ảnh | Quần Hắc Y Hỏa Ảnh | Hộ Thủ Hồng Diệp | Giày Hồng Diệp | Hồng Diệp Trảm Đao |
+| **Tier 4** | Thượng Nhẫn (Lvl 31-40) | Băng Trán Xích Long | Giáp Xích Lân | Quần Xích Lân | Hộ Thủ Xích Lân | Bốt Xích Lân | Xích Long Quạt Xếp |
+| **Tier 5** | Ám Bộ (Lvl 41-50) | Mặt Nạ Ám Bộ Hỏa | Áo Choàng Dạ Hành | Quần Dạ Hành | Hộ Thủ Ám Hỏa | Bốt Dạ Hành | Ám Hỏa Song Thao |
+| **Tier 6** | Huyền Thoại (Lvl 51-60) | Băng Trán Huyết Nguyệt | Ma Giáp Huyết Nguyệt | Ma Quần Huyết Nguyệt | Hộ Thủ Huyết Nguyệt | Bốt Huyết Nguyệt | Huyết Nguyệt Ma Kiếm |
+| **Tier 7** | Nhẫn Ảnh (Lvl 61-70) | Băng Trán Viêm Đế | Long Giáp Viêm Long | Long Quần Viêm Long | Hộ Thủ Viêm Long | Bốt Viêm Long | Viêm Đế Cự Kiếm |
+| **Tier 8** | Tiên Nhân (Lvl 71-80) | Băng Trán Tiên Hỏa | Pháp Y Tiên Nhân Hỏa | Pháp Quần Tiên Nhân Hỏa | Hộ Thủ Tiên Hỏa | Giày Tiên Hỏa | Tiên Hỏa Pháp Trượng |
+| **Tier 9** | Nhẫn Thần (Lvl 81-90) | Băng Trán Lục Đạo Ma Nhãn | Lân Giáp Lục Đạo Huyết Nguyệt | Lân Quần Lục Đạo Huyết Nguyệt | Hộ Thủ Lục Đạo Hỏa Thần | Bốt Lục Đạo Huyết Nguyệt | Lục Đạo Hỏa Thần Quạt Xếp |
+
+##### *Prompts Sinh Ảnh AI (Gemini/Imagen) - Thiết kế Spine2D (T-Pose & Inpaint)*
+*   **Quy trình dựng hình Spine2D**:
+    1.  **Gen ảnh gốc (Base T-Pose)**: Sử dụng Base Prompt để tạo 1 ảnh nhân vật T-pose/A-pose toàn thân, đồng nhất ánh sáng, tỷ lệ và phong cách nghệ thuật.
+    2.  **Inpaint tinh chỉnh (Inpaint Detail)**: Sử dụng Inpaint Prompt Guide để vẽ đè và tinh chỉnh chi tiết trực tiếp từng vùng (Áo, Quần, Găng tay, Giày, Băng trán, Nhẫn cụ) trên CÙNG 1 ảnh gốc, giữ nguyên tư thế và tỷ lệ cơ thể.
+    3.  **Tách Layer & Generative Fill**: Tách thủ công các layer trong Photoshop và dùng Generative Fill để vẽ bù các phần bị che khuất trước khi xuất PNG đưa vào Spine.
+*   **Base Prompt Template**: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. [Character Outfit & Gear Details]. Hands are empty, open palms facing forward with fingers spread. Low collar showing clear neck skin. Sleeves show a clear gap of skin at the wrists. Belt is aligned flat on the waist. All weapons and accessories are generated as separate floating objects next to the character. --no watermark, text`
+*   **Chi tiết Prompt từng Tier (Base T-Pose & Inpaint Guides)**:
+    *   **Tier 1 (Học Viên)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A young Huyết Nhãn Clan ninja apprentice. Wearing a simple V-neck black linen shirt, black pants with red linings, simple red hand wraps showing wrist skin, red slippers. Simple red headband on head. Hands are empty, open palms facing forward. A fire-red steel shuriken is generated as a separate floating object next to the character. Color palette: flat black, flat crimson red, flat charcoal gray.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Simple red cloth headband, high detail`
+            *   *Áo*: `Simple red ninja shirt, V-neck showing neck skin`
+            *   *Quần*: `Simple red ninja pants, black fabric linings, flat waistline`
+            *   *Găng tay*: `Hand wraps made of crimson red cloth, showing wrist skin separation`
+            *   *Giày*: `Simple red fabric ninja slippers`
+            *   *Nhẫn cụ*: `Fire-red shuriken, simple red steel star, generated next to the hand, not held`
+    *   **Tier 2 (Hạ Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn Clan ninja. Wearing crimson ninja tunic (V-neck showing neck skin) with red lotus patterns, crimson pants, black leather wrist guards showing wrist skin, crimson boots. Headband with red lotus engraved plate. Hands are empty, open palms facing forward. A kunai-style sword with a red lotus pommel is generated as a separate floating object next to the character. Color palette: flat crimson red, flat black, flat copper.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Crimson cloth headband, red lotus engraved plate, high detail`
+            *   *Áo*: `Crimson ninja tunic, V-neck showing neck skin`
+            *   *Quần*: `Crimson ninja pants, red lotus patterns on the legs`
+            *   *Găng tay*: `Wrist guards, showing wrist skin separation, red lotus flame patterns on black leather`
+            *   *Giày*: `Crimson leather ninja boots with red lotus petal patterns`
+            *   *Nhẫn cụ*: `Straight ninja sword (kunai-style) with a red lotus pommel, crimson steel blade, generated next to the hand, not held`
+    *   **Tier 3 (Trung Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn Clan ninja. Wearing a charcoal black stealth ninja shirt (V-neck showing neck skin), matching pants with crimson leaf crests, black plated gloves showing wrist skin, charcoal black boots. Headband with charcoal steel plate. Hands are empty, open palms facing forward. A large executioner sword (zanbato) is generated as a separate floating object next to the character. Color palette: flat charcoal black, flat crimson red, flat steel gray.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Dark charcoal steel protector, crimson leaf pattern headband`
+            *   *Áo*: `Charcoal black stealth ninja shirt, V-neck showing neck skin, crimson leaf crest on the chest`
+            *   *Quần*: `Charcoal black ninja pants, dark red linings`
+            *   *Găng tay*: `Charcoal black plated gloves, showing wrist skin separation`
+            *   *Giày*: `Charcoal black ninja boots, crimson leather trims`
+            *   *Nhẫn cụ*: `Large executioner sword (zanbato), dark steel blade with crimson leaf blood-groove, generated next to the hand, not held`
+    *   **Tier 4 (Thượng Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn Clan ninja. Wearing dragon-scale plated ninja shirt (V-neck showing neck skin) and pants made of black steel and crimson scales, dragon-scale gauntlets and boots, and a headband with a red-scale dragon plate. Hands are empty, open palms facing forward. A large obsidian folding war fan is generated as a separate floating object next to the character. Color palette: flat obsidian black, flat crimson red, flat steel.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Obsidian black headband, red-scale dragon plate`
+            *   *Áo*: `Dragon-scale plated ninja shirt, V-neck showing neck skin, black steel and crimson scales`
+            *   *Quần*: `Dragon-scale plated ninja pants, black steel and crimson scales`
+            *   *Găng tay*: `Dragon-scale gauntlets, showing wrist skin separation, obsidian black claws`
+            *   *Giày*: `Dragon-scale plated boots, black and red steel`
+            *   *Nhẫn cụ*: `Large folding war fan, obsidian ribs, crimson silk with a red dragon, generated next to the hand, not held`
+    *   **Tier 5 (Ám Bộ)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. An elite shadow spec-ops fire ninja wearing a stylized horned demon porcelain mask. Wearing a black shadow-stalker cloak and pants (V-neck showing neck skin) with red linings and glowing lava veins, black leather gauntlets showing wrist skin, matching boots. Hands are empty, open palms facing forward. Dual daggers (sai) are generated as separate floating objects next to the character. Color palette: flat black, flat crimson red, flat lava orange.`
+        - *Inpaint Guides*:
+            *   *Băng trán (Mặt nạ)*: `Stylized horned demon porcelain mask, black and red patterns`
+            *   *Áo*: `Black shadow-stalker cloak, V-neck showing neck skin, red linings, glowing lava veins`
+            *   *Quần*: `Black stealth ninja pants, red lining, glowing lava veins`
+            *   *Găng tay*: `Black leather gauntlets, showing wrist skin separation`
+            *   *Giày*: `Stealth ninja boots, black leather, silent sole with glowing red embers`
+            *   *Nhẫn cụ*: `Dual daggers (sai) made of red-hot magma steel, black hilts, generated next to the hand, not held`
+    *   **Tier 6 (Huyền Thoại)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn legendary ninja. Wearing legendary demonic armor shirt (V-neck showing neck skin) and pants, obsidian black with blood-red and purple flame gradients, dark purple steel gauntlets and boots, and a headband with a crescent moon blood-red gem plate. Hands are empty, open palms facing forward. A demonic broadsword is generated as a separate floating object next to the character. Color palette: flat obsidian black, flat blood red, flat dark purple.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Purple-black cloth headband, crescent moon blood-red gem plate`
+            *   *Áo*: `Legendary demonic armor shirt, V-neck showing neck skin, obsidian black, blood-red and dark purple flame gradients`
+            *   *Quần*: `Legendary demonic pants, obsidian black, purple fire patterns`
+            *   *Găng tay*: `Cursed gauntlets, dark purple steel, showing wrist skin separation`
+            *   *Giày*: `Demonic heavy boots, blood-red steel, purple fire trail effect`
+            *   *Nhẫn cụ*: `Demonic broadsword, jagged obsidian blade, glowing blood-red crescent moon inlays, generated next to the hand, not held`
+    *   **Tier 7 (Nhẫn Ảnh)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn Kage ninja. Wearing majestic Kage armor vest (V-neck showing neck skin) and pants in deep crimson and pitch-black, gold thread borders, Kage gauntlets and boots, and a Kage headband with a glowing ruby plate. Hands are empty, open palms facing forward. A legendary greatsword is generated as a separate floating object next to the character. Color palette: flat deep crimson, flat black, flat gold.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Deep crimson cloth headband, Kage headband with a glowing ruby plate, flame crest`
+            *   *Áo*: `Majestic Kage armor vest, V-neck showing neck skin, deep crimson and pitch-black, gold thread borders`
+            *   *Quần*: `Majestic Kage pants, deep crimson, gold dragon patterns`
+            *   *Găng tay*: `Kage gauntlets, pitch-black armor plates, showing wrist skin separation`
+            *   *Giày*: `Kage boots, dark steel, red dragon leather linings`
+            *   *Nhẫn cụ*: `Legendary greatsword, blade forged from black steel and solid ruby, generated next to the hand, not held`
+    *   **Tier 8 (Tiên Nhân)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn Sage ninja. Wearing a Sage tunic shirt (V-neck showing neck skin) and pants in flowing crimson and black silk, glowing orange-red fire chakra lines, Sage arm wraps and boots, and a headband with a gold-rimmed red jade plate. Hands are empty, open palms facing forward. A Sage fire staff is generated as a separate floating object next to the character. Color palette: flat crimson, flat black, flat fiery orange.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Sage mode headband with a gold-rimmed red jade plate, wreathed in soft orange-red flames`
+            *   *Áo*: `Sage tunic shirt, V-neck showing neck skin, flowing crimson and black silk`
+            *   *Quần*: `Sage pants, black silk, glowing red fire runes`
+            *   *Găng tay*: `Sage arm wraps, showing wrist skin separation`
+            *   *Giày*: `Sage boots, black leather, trailing a trail of fiery flower petals`
+            *   *Nhẫn cụ*: `Sage fire staff, gold dragon wrapping around a black staff, generated next to the hand, not held`
+    *   **Tier 9 (Nhẫn Thần)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Huyết Nhãn God-like ninja. Wearing Six-Paths god armor (V-neck showing neck skin) and pants, pitch-black demonic plates, wreathed in crimson and dark violet chakra flames, demonic gauntlets and boots, and a headband with a six-path red-gold eye plate. Hands are empty, open palms facing forward. A massive war fan is generated as a separate floating object next to the character. Color palette: flat black, flat crimson red, flat deep purple.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `God Tier headband with a six-path red-gold eye plate, pitch-black metal, glowing red sharingan eye`
+            *   *Áo*: `Six-Paths god armor chestplate, V-neck showing neck skin, pitch-black demonic plates`
+            *   *Quần*: `Six-Paths god pants, pitch-black plates, wreathed in crimson and dark violet chakra flames`
+            *   *Găng tay*: `Six-Paths demonic gauntlets, showing wrist skin separation`
+            *   *Giày*: `Six-Paths demonic boots, pitch-black steel, purple and red fire aura`
+            *   *Nhẫn cụ*: `Massive war fan (gunbai) made of divine red-gold wood and black metal, red-eye patterns, generated next to the hand, not held`
+
+#### 3. Bạch Nhãn Tộc (Tộc Hệ Nhu Quyền / Thể Thuật / Khí Kình - Chỉ số ưu tiên: Tốc đánh, Tốc chạy, Tỷ lệ Né tránh)
+
+| Cấp Bậc (Tier) | Nhẫn Cấp Tương Ứng | Băng Đeo Trán (Headband) | Áo (Shirt) | Quần (Pants) | Găng Tay (Gloves) | Giày (Shoes) | Nhẫn Cụ (Ninja Tool) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Tier 1** | Học Viên (Lvl 1-10) | Băng Trán Thạch Bạch | Áo Học Viên Trắng | Quần Học Viên Trắng | Băng Tay Vải Trắng | Giày Vải Trắng | Nhu Quyền Thảo Chỉ |
+| **Tier 2** | Hạ Nhẫn (Lvl 11-20) | Băng Trán Tĩnh Tâm | Áo Phong Khí | Quần Phong Khí | Băng Tay Tĩnh Tâm | Giày Phong Khí | Huyệt Chỉ Châm |
+| **Tier 3** | Trung Nhẫn (Lvl 21-30) | Băng Trán Linh Nhãn | Áo Khí Giáp Hộ Vệ | Quần Khí Giáp Hộ Vệ | Băng Tay Linh Nhãn | Giày Hộ Vệ Bạch | Bát Quái Song Khuyên |
+| **Tier 4** | Thượng Nhẫn (Lvl 31-40) | Băng Trán Khí Tự | Áo Khí Kình | Quần Khí Kình | Khí Kình Thiết Găng | Bốt Khí Kình | Hộ Ngực Pháp Kính |
+| **Tier 5** | Ám Bộ (Lvl 41-50) | Mặt Nạ Ám Bộ Phong | Áo Khí Ảnh | Quần Khí Ảnh | Ám Nhãn Hộ Thủ | Bốt Khí Ảnh | Ám Kính Pháp Trảo |
+| **Tier 6** | Huyền Thoại (Lvl 51-60) | Băng Trán Hư Không | Pháp Giáp Hư Vô | Pháp Quần Hư Vô | Hư Vô Hộ Thủ | Bốt Hư Vô | Hư Vô Thần Trảo |
+| **Tier 7** | Nhẫn Ảnh (Lvl 61-70) | Băng Trán Tâm Nhãn | Áo Thiên Nhãn | Quần Thiên Nhãn | Hộ Thủ Thiên Nhãn | Bốt Thiên Nhãn | Thiên Nhãn Thần Ấn |
+| **Tier 8** | Tiên Nhân (Lvl 71-80) | Băng Trán Tiên Khí | Giáp Tiên Nhân Thể | Quần Tiên Nhân Thể | Hộ Thủ Tiên Thể | Giày Tiên Nhân Thể | Tiên Nhân Vô Cực Ấn |
+| **Tier 9** | Nhẫn Thần (Lvl 81-90) | Băng Trán Vô Cực Lục Đạo | Thánh Giáp Lục Đạo Vô Cực | Thánh Quần Lục Đạo Vô Cực | Hộ Thủ Lục Đạo Vô Cực | Bốt Thánh Lục Đạo | Lục Đạo Vô Cực Ấn |
+
+##### *Prompts Sinh Ảnh AI (Gemini/Imagen) - Thiết kế Spine2D (T-Pose & Inpaint)*
+*   **Quy trình dựng hình Spine2D**:
+    1.  **Gen ảnh gốc (Base T-Pose)**: Sử dụng Base Prompt để tạo 1 ảnh nhân vật T-pose/A-pose toàn thân, đồng nhất ánh sáng, tỷ lệ và phong cách nghệ thuật.
+    2.  **Inpaint tinh chỉnh (Inpaint Detail)**: Sử dụng Inpaint Prompt Guide để vẽ đè và tinh chỉnh chi tiết trực tiếp từng vùng (Áo, Quần, Găng tay, Giày, Băng trán, Nhẫn cụ) trên CÙNG 1 ảnh gốc, giữ nguyên tư thế và tỷ lệ cơ thể.
+    3.  **Tách Layer & Generative Fill**: Tách thủ công các layer trong Photoshop và dùng Generative Fill để vẽ bù các phần bị che khuất trước khi xuất PNG đưa vào Spine.
+*   **Base Prompt Template**: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. [Character Outfit & Gear Details]. Hands are empty, open palms facing forward with fingers spread. Low collar showing clear neck skin. Sleeves show a clear gap of skin at the wrists. Belt is aligned flat on the waist. All weapons and accessories are generated as separate floating objects next to the character. --no watermark, text`
+*   **Chi tiết Prompt từng Tier (Base T-Pose & Inpaint Guides)**:
+    *   **Tier 1 (Học Viên)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A young Bạch Nhãn Clan ninja apprentice. Wearing a simple white cotton training shirt (V-neck showing neck skin), white pants, white hand wraps showing wrist skin, and white shoes. Headband with white stone plate. Hands are empty, open palms facing forward. White cotton martial arts hand-guards are generated as a separate floating object next to the character. Color palette: flat snow white, flat light gray, flat soft cream.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Simple white cloth headband with a white stone protector plate, high detail`
+            *   *Áo*: `White ninja training shirt, V-neck showing neck skin, soft cotton fabric`
+            *   *Quần*: `White ninja training pants, soft cotton fabric, flat waistline`
+            *   *Găng tay*: `Simple hand wraps made of white cotton cloth, showing wrist skin separation`
+            *   *Giày*: `Simple white cloth ninja shoes`
+            *   *Nhẫn cụ*: `White cotton hand-guard wraps for martial arts, generated next to the hand, not held`
+    *   **Tier 2 (Hạ Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Bạch Nhãn Clan ninja. Wearing a white silk ninja tunic (V-neck showing neck skin), matching pants, pale ice-blue sash and collar with wind patterns, white silk wrist wraps showing wrist skin, white leather boots with light-blue trims. Headband with a light-blue silver plate. Hands are empty, open palms facing forward. Silver acupuncture pins (senbon) are generated as separate floating objects next to the character. Color palette: flat snow white, flat ice-blue, flat silver.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `White cloth headband, light-blue silver plate, high detail`
+            *   *Áo*: `White silk ninja shirt, V-neck showing neck skin, pale ice-blue sash and collar`
+            *   *Quần*: `White silk ninja pants, light-blue wind pattern embroidery`
+            *   *Găng tay*: `Wrist wraps, white silk, showing wrist skin separation`
+            *   *Giày*: `White leather ninja boots with light-blue trims`
+            *   *Nhẫn cụ*: `Needle-point iron acupuncture pins (senbon), silver, white handles, generated next to the hand, not held`
+    *   **Tier 3 (Trung Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Bạch Nhãn Clan ninja. Wearing white leather armor vest (V-neck showing neck skin) and pants, light-blue silk trims, silver linings, fingerless white leather gloves showing wrist skin, white boots. Headband with a polished silver plate. Hands are empty, open palms facing forward. A pair of wind-rings (bagua khuyen) is generated as a separate floating object next to the character. Color palette: flat snow white, flat light-blue, flat silver.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `White cloth headband, polished silver plate, high detail`
+            *   *Áo*: `White leather armor vest, V-neck showing neck skin, light-blue silk trims`
+            *   *Quần*: `White leather pants, light-blue silk trims, silver linings`
+            *   *Găng tay*: `Fingerless white leather gloves, showing wrist skin separation`
+            *   *Giày*: `White leather boots, silver steel plates`
+            *   *Nhẫn cụ*: `Pair of wind-rings (bagua khuyen), polished silver steel, generated next to the hand, not held`
+    *   **Tier 4 (Thượng Nhẫn)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A Bạch Nhãn Clan ninja. Wearing a heavy white cloth coat (V-neck showing neck skin) and pants with ice-blue steel plate armor inserts, heavy silver-white gauntlets and boots, and a headband with a white jade plate carved with wind runes. Hands are empty, open palms facing forward. A round silver mirror shield is generated as a separate floating object next to the character. Color palette: flat white, flat ice-blue, flat silver.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `White cloth headband, white jade plate carved with wind runes`
+            *   *Áo*: `Heavy white cloth coat, V-neck showing neck skin, ice-blue steel plate inserts`
+            *   *Quần*: `Heavy white cloth pants, ice-blue steel plate inserts`
+            *   *Găng tay*: `Heavy steel gauntlets, silver-white, showing wrist skin separation`
+            *   *Giày*: `Heavy silver-white plated boots, frost lining`
+            *   *Nhẫn cụ*: `Round silver mirror shield, glowing white wind runes, generated next to the hand, not held`
+    *   **Tier 5 (Ám Bộ)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. An elite shadow spec-ops frost ninja wearing a stylized white tiger porcelain mask. Wearing a stealth ninja shirt (V-neck showing neck skin) and pants in dark silver fabric with pure white plated vest and knee pads, silver-white gauntlets showing wrist skin, matching boots. Hands are empty, open palms facing forward. Twin bladed claws (karambit) are generated as separate floating objects next to the character. Color palette: flat white, flat dark silver, flat ice blue.`
+        - *Inpaint Guides*:
+            *   *Băng trán (Mặt nạ)*: `Stylized white tiger porcelain mask, silver and ice-blue markings`
+            *   *Áo*: `Stealth ninja shirt, V-neck showing neck skin, pure white plated vest`
+            *   *Quần*: `Stealth ninja pants, dark silver, pure white knee pads`
+            *   *Găng tay*: `Silver-white metal gauntlets, showing wrist skin separation`
+            *   *Giày*: `Silent white ninja boots, steel plated`
+            *   *Nhẫn cụ*: `Twin bladed claws (karambit-style) made of white-frost steel, generated next to the hand, not held`
+    *   **Tier 6 (Huyền Thoại)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A legendary frost-mist ninja warrior. Wearing a legendary white ninja robe and pants (low collar showing neck skin) wreathed in pale ice-blue frost crystals, frost gauntlets showing wrist skin, matching boots, and a headband with a hollow silver plate. Hands are empty, open palms facing forward. Triple-pronged claws are generated as separate floating objects next to the character. Color palette: flat snow white, flat ice blue, flat silver.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `White headband, hollow silver plate, wreathed in white glowing mist`
+            *   *Áo*: `Legendary white ninja robe top, V-neck showing neck skin, pale ice-blue frost crystals`
+            *   *Quần*: `Legendary white ninja pants, wreathed in pale ice-blue frost crystals`
+            *   *Găng tay*: `Frost gauntlets, pure white steel, showing wrist skin separation`
+            *   *Giày*: `Frost-steel boots, pure white, leaving frozen ice prints`
+            *   *Nhẫn cụ*: `Legendary triple-pronged claws, forged from pure white crystal ice, generated next to the hand, not held`
+    *   **Tier 7 (Nhẫn Ảnh)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A supreme frost ninja grandmaster. Wearing a ceremonial grandmaster robe and pants (V-neck showing neck skin) in pure snow white with gold thread embroidery, grandmaster gauntlets showing wrist skin, matching boots, and a grandmaster headband with a grandmaster forehead protector plate. Hands are empty, open palms facing forward. A sacred circular mirror amulet is generated as a separate floating object next to the character. Color palette: flat white, flat gold, flat silver.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `White silk headband, grandmaster forehead protector plate`
+            *   *Áo*: `Ceremonial grandmaster shirt, V-neck showing neck skin, pure snow white, gold thread embroidery`
+            *   *Quần*: `Majestic Kage pants, pure snow white, gold thread embroidery`
+            *   *Găng tay*: `Grandmaster gauntlets, silver-white steel, showing wrist skin separation`
+            *   *Giày*: `Kage boots, white leather, golden rims`
+            *   *Nhẫn cụ*: `Sacred circular mirror amulet, floating gold and silver rings, generated next to the hand, not held`
+    *   **Tier 8 (Tiên Nhân)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. An ascended wind sage ninja. Wearing a mystical wind sage tunic and pants (V-neck showing neck skin) in flowing pure white and gold silk, sage gauntlets showing wrist skin, matching boots, and a headband with a gold-plated white jade protector. Hands are empty, open palms facing forward. A sacred wind wheel amulet is generated as a separate floating object next to the character. Color palette: flat white, flat gold, flat light blue.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Sage mode headband with a gold-plated white jade protector, white mist aura`
+            *   *Áo*: `Mystical wind sage tunic top, V-neck showing neck skin, flowing pure white and gold silk`
+            *   *Quần*: `Sage pants, flowing pure white and gold silk, white chakra patterns`
+            *   *Găng tay*: `Sage gauntlets, gold and pearlescent white, showing wrist skin separation`
+            *   *Giày*: `Sage boots, starlight silver, leaving a trail of white wind clouds`
+            *   *Nhẫn cụ*: `Sacred wind wheel amulet, white jade and gold, generated next to the hand, not held`
+    *   **Tier 9 (Nhẫn Thần)**:
+        - *Base T-Pose*: `Full body character concept sheet, front view, symmetrical T-pose, anime game style, strictly flat 2D vector art, unlit, no gradients, flat local colors only, no directional light, symmetrical ambient lighting, clean black outlines, solid black background. A divine transcendent wind deity ninja. Wearing transcendent deity armor chestplate and pants (low collar showing neck skin), pearlescent white energy plates, deity gauntlets showing wrist skin, matching boots, and a headband with a transcendent deity forehead protector plate. Hands are empty, open palms facing forward. A deity thunderbolt scepter is generated as a separate floating object next to the character. Color palette: flat white, flat gold, flat silver.`
+        - *Inpaint Guides*:
+            *   *Băng trán*: `Deity forehead protector plate, glowing white aura`
+            *   *Áo*: `Transcendent deity armor chestplate, V-neck showing neck skin, pearlescent white energy plates`
+            *   *Quần*: `Six-Paths god pants, pearlescent white energy plates, glowing gold and starlight silver gradients`
+            *   *Găng tay*: `Deity gauntlets, white-gold scales, showing wrist skin separation`
+            *   *Giày*: `Six-Paths boots, white-gold, trailing bright white starlight prints`
+            *   *Nhẫn cụ*: `Deity thunderbolt scepter, white-gold and starlight silver, generated next to the hand, not held`
+
+### F. Cấu Trúc Xương Nhẫn Giả Chuẩn Cho Spine2D (Standard Spine2D Skeletal Anatomy)
+
+Để hỗ trợ đắc lực cho việc cắt lớp đồ họa (Select + Mask) từ ảnh gốc T-pose và chuyển tiếp mượt mà sang phần mềm Spine2D để gắn xương và tạo hoạt ảnh (rigging & animation), cấu trúc khớp xương nhân vật được quy định theo cấu trúc **CHUẨN** (khuyên dùng cho game nhập vai thông thường) kèm theo các dòng prompt tinh chỉnh (Inpaint/Refine Prompt Guide) cho từng vùng tương ứng:
+
+*   **Đầu & Cổ (Head & Neck - 5 đến 6 phần)**:
+    *   `head`: Phần đầu và khuôn mặt (bao gồm cả băng đeo trán/headband).
+        *   *Inpaint Prompt*: `Sleek anime ninja head, face front view, symmetrical features, clear chin line, fabric headband wraps, strictly flat 2D vector art, unlit, clean outlines`
+    *   `hair`: Tóc nhẫn giả (nếu tóc dài cần tách thành các phân lớp rời để bay theo gió và quán tính chuyển động).
+        *   *Inpaint Prompt*: `Anime ninja hair flow, clean flat vector strands, solid colors, unlit, clean outlines, no shading`
+    *   `neck`: Cổ nhân vật (ngăn cách đầu và áo).
+        *   *Inpaint Prompt*: `Symmetrical neck skin, smooth neck, flat skin color, unlit, clean black outlines`
+    *   `eyes`: Cặp mắt nhẫn giả (tách riêng nếu cần làm hoạt ảnh chớp mắt hoặc kích hoạt nhãn thuật).
+        *   *Inpaint Prompt*: `Anime eyes front view, symmetrical eyes, flat color iris, clean outlines, open eyes`
+    *   `mouth`: Miệng nhân vật (tách riêng nếu cần chuyển đổi biểu cảm hoặc hoạt ảnh nói chuyện).
+        *   *Inpaint Prompt*: `Anime mouth lips, neutral expression, closed lips, clean black lines, flat skin tone`
+*   **Thân Mình (Torso & Pelvis - 1 đến 2 phần)**:
+    *   `torso`: Thân trên (tính từ chân cổ đến hông, chứa giáp áo/shirt).
+        *   *Inpaint Prompt*: `Sleek anime ninja tunic chest torso, V-neck showing neck skin, flat colors, no shadows, unlit, clean outlines`
+    *   `hip` / `pelvis`: Phần hông nhân vật (tách rời để xoay độc lập khi di chuyển hoặc chạy).
+        *   *Inpaint Prompt*: `Flat ninja belt sash waistline, top of pants, clean waist separation, unlit, clean outlines`
+*   **Cánh Tay (Arms - 6 phần, chia đều 2 bên)**:
+    *   `upper-arm-L` / `upper-arm-R`: Bắp tay (trái/phải).
+        *   *Inpaint Prompt*: `Shinobi upper sleeve, loose cloth folds, flat colors, unlit, clean outline`
+    *   `lower-arm-L` / `lower-arm-R`: Cẳng tay (trái/phải, vị trí găng tay/gloves).
+        *   *Inpaint Prompt*: `Shinobi lower sleeve, wrist fabric wraps showing wrist skin gap, unlit, clean outline`
+    *   `hand-L` / `hand-R`: Bàn tay (trái/phải).
+        *   *Inpaint Prompt*: `Slightly open palms, fingers spread front view, flat skin color, unlit, clean black outline`
+*   **Chân (Legs - 6 phần, chia đều 2 bên)**:
+    *   `thigh-L` / `thigh-R`: Đùi nhân vật (trái/phải, vị trí quần/pants).
+        *   *Inpaint Prompt*: `Baggy ninja pants thigh area, loose folds, flat colors, unlit, clean outline`
+    *   `shin-L` / `shin-R`: Ống chân (trái/phải, bao gồm phần xà cạp/quấn chân).
+        *   *Inpaint Prompt*: `Shin guards, calf wraps, leg bandages, flat colors, unlit, clean black outline`
+    *   `foot-L` / `foot-R`: Bàn chân (trái/phải, vị trí giày/shoes).
+        *   *Inpaint Prompt*: `Ninja split-toe tabi boots, flat colors, unlit, clean outline`
+
+**Tổng cộng**: Khoảng **19 đến 21 bộ phận tách lớp**. Đây là cấu trúc xương tối ưu nhất để thực hiện mượt mà các chuỗi hoạt ảnh cơ bản của nhẫn giả trong game Phaser: Đứng chờ (Idle), Chạy bộ (Run), Nhảy cao (Jump), Đấm thường (Basic Attack) và các thế thủ chiến đấu đặc trưng.
 
 ---
 
-## 10. KẾ HOẠCH XÁC MINH & CHẠY THỬ (VERIFICATION PLAN)
+## 9. HỆ THỐNG HUYẾT THANH BỔ TRỢ (CONSUMABLE SERUMS SYSTEM)
 
-*   **Xác minh hoạt động 15 Nhiệm vụ (Tiến trình Backend)**:
-    *   Kiểm tra việc lưu/đọc dữ liệu nhiệm vụ từ database thông qua REST API.
-    *   Xác minh các mốc Khóa Tập Luyện (Level 4 và Level 6) chặn thành công không cho nhận nhiệm vụ tiếp theo nếu chưa đạt điều kiện sức mạnh.
-    *   Xác minh trao thưởng Thần Thú Ngọc 1★, 2★, 3★ khi nhận thưởng nhiệm vụ chính 4, 6, 9.
-*   **Xác minh dấu hiệu NPC Quest**: Xác minh biểu tượng `!` và `?` đổi trạng thái chính xác theo tiến trình nhiệm vụ.
-*   **Xác minh Vật lý Nước & Bay**:
-    *   *Bay*: PC dùng phím Lên/W và Trái/Phải; Mobile dùng kéo Joystick lên trên để bay. Kiểm tra bay tiêu hao 3 Mana/giây.
-    *   *Rơi Tự Do (Freefall)*: Khi Mana xuống dưới 40%, kiểm tra nhân vật tự động thoát bay, mất điều khiển ngang (chỉ còn 15% quán tính), rơi thẳng đứng với gia tốc. Kiểm tra các nút nhảy, bay, đánh đấm/chưởng bị khóa trong khi rơi. Tiếp đất kiểm tra nhân vật bị stun 0.5s và có khói bụi bụi đất.
-    *   *Nước*: Đứng trên nước hao 2 Mana/giây, xuất hiện vòng gợn nước phát sáng dưới chân. Khi Mana < 40%, nhân vật rơi xuống nước, vẫn chạy/di chuyển bình thường nhưng tốc độ đấm và tốc độ hồi/thi triển chưởng bị giảm đi 30%.
-*   **Xác minh Hồn Linh Thú**: Sử dụng Hồn Linh Thú để khảm vào trang bị kích hoạt các dòng thuộc tính ẩn và hiệu ứng hình ảnh thành công.
-*   **Xác minh Quái Tinh Anh (Elite) - Kịch bản Test cho Phase 3**:
-    *   Kiểm tra tăng HP (+150%) hoạt động chính xác.
-    *   Kiểm tra sát thương của đòn đánh quái Tinh Anh gây mất đúng **10% - 15% HP tối đa** của người chơi (bất kể chỉ số phòng thủ).
-    *   *Test Tinh Anh Phân Thân*: Nhân bản 2 phân thân ở < 50% HP, giữ mục tiêu đỏ ở bản gốc.
-    *   *Test Tinh Anh Địa Lôi*: Vùng lôi slam khóa thành công bay/nhảy trong 3s.
-    *   *Test Tinh Anh Hộ Thuẫn*: Khiên cam block đấm, khiên lam block chưởng luân phiên 5s.
-*   **Xác minh Thanh Nộ Tối Thượng**:
-    *   Kiểm tra sạc nộ khi tấn công/chịu đòn, khóa giữ nộ ở 100% không bị tụt.
-    *   Kiểm tra logic **quay ngẫu nhiên nhận 1 trong 4 skill bá đạo** khi kích hoạt.
-*   **Xác minh Cây Thần Ảo Mộng**:
-    *   Kiểm tra logic thu thập đủ 9 ngọc mới cho triệu hồi.
-    *   Kiểm tra hiệu ứng rung camera, chuyển màu nền sang tối trăng máu, quái vật tăng 30% sát thương đòn đánh.
-*   **Xác minh Doanh Trại Co-op Gauntlet Raid**:
-    *   Kiểm tra chặn không cho đi solo (tổ đội phải có ít nhất 2 người và tối đa 8 người mới cho vào cổng).
-    *   Kiểm tra thuật toán **Scale chỉ số quái vật** theo thời gian thực dựa trên số lượng và sức mạnh của tổ đội người chơi.
-    *   Xác minh cấu trúc vượt ải: dọn quái qua các bản đồ nhỏ, tiêu diệt Boss nhỏ gác cổng để qua bản đồ lớn tiếp theo.
-    *   Xác minh các cơ chế phối hợp: kích hoạt mở kết giới bằng phá trụ nhãn trên cao khi đang bay, đi trên nước chia ngả và đo thời gian hạ gục 3 phân thân Boss đồng thời (dưới 10 giây).
+Để gia tăng khả năng hồi phục, gia tốc cày cuốc và cung cấp các hiệu ứng bổ trợ chỉ số tức thời trong chiến đấu (đặc biệt khi săn Boss hoặc đi phụ bản tổ đội), game thiết kế hệ thống **Huyết Thanh (Serums)** dưới dạng vật phẩm tiêu hao:
+
+### A. Huyết Thanh Hồi Phục Tức Thời (Recovery Serums)
+*   **Huyết Thanh Chakra Trích Xuất (Chakra Extract)**:
+    *   *Tác dụng*: Hồi phục lập tức 100% HP và 100% Mana của nhân vật.
+    *   *Thời gian chờ (Cooldown)*: 15 giây giữa các lần sử dụng để ngăn chặn việc lạm dụng spam thuốc hồi máu liên tục trong PvP hoặc đi Raid.
+*   **Huyết Thanh Tế Bào Thần Mộc (Divine Wood Cell)**:
+    *   *Tác dụng*: Phục hồi dần dần 3% HP và 3% Mana mỗi giây, kéo dài liên tục trong 30 giây.
+
+### B. Huyết Thanh Tăng Chỉ Số Chiến Đấu (Stat Boost Serums - Tác dụng 10 phút, mất khi tử trận)
+*   **Huyết Thanh Cuồng Viêm (Wildfire)**: Tăng 30% Sức Đánh (ATK) cho cả đòn ĐẤM thường và CHƯỞNG lực.
+*   **Huyết Thanh Huyết Long (Dragon Blood)**: Tăng 50% chỉ số HP tối đa của nhân vật.
+*   **Huyết Thanh Tĩnh Hải (Silent Sea)**: Tăng 50% chỉ số Mana tối đa của nhân vật.
+*   **Huyết Thanh Linh Thạch (Soulstone)**: Tăng 30% Giáp và khả năng kháng sát thương vật lý/nhẫn thuật (DEF).
+
+### C. Huyết Thanh Cuồng Nộ Cấp Tốc (Rage Serum)
+*   **Huyết Thanh Cuồng Nộ (Rage)**:
+    *   *Tác dụng*: Lập tức sạc đầy 100% điểm trên thanh Nộ (sẵn sàng kích hoạt trạng thái Ultimate Rage tương ứng của Gia tộc) và tăng thêm 50% tốc độ tích lũy nộ khi chiến đấu trong vòng 5 phút tiếp theo.
+
+### D. Huyết Thanh Tăng Trưởng (Growth Serums)
+*   **Huyết Thanh Thiên Nhãn (Heaven's Eye)**: Tăng 100% (nhân đôi x2) lượng Chakra kinh nghiệm nhận được từ tiêu diệt quái vật trong vòng 30 phút.
+*   **Huyết Thanh Thần Thú (Beast Fortune)**: Tăng 50% tỷ lệ rơi nguyên liệu rèn đồ và các vật phẩm Thần Thú Ngọc quý hiếm trong vòng 30 phút.
+
+---
+
+## 10. HỆ THỐNG GIẢI ĐẤU & BANG HỘI TRANH ĐẤU (TOURNAMENT & GUILD WARS SYSTEM)
+
+Nhằm thúc đẩy tính cạnh tranh cộng đồng, củng cố kỹ năng PK và tạo động lực hoạt động nhóm, máy chủ trò chơi vận hành hệ thống giải đấu PvP phân cấp và sự kiện Bang chiến định kỳ dưới sự điều phối logic của backend:
+
+### A. Ba Giải Đấu Phân Cấp Hàng Ngày (Daily Junior Tournaments)
+Được tổ chức tự động vào các khung giờ cố định hàng ngày để người chơi cọ xát theo từng dải cấp độ phù hợp, tránh mất cân bằng do chênh lệch cấp độ lớn:
+*   **Giải Tân Thủ (Cấp 10 - 20)**:
+    *   *Địa điểm*: Đấu trường Làng Cổ Nhẫn.
+    *   *Giới hạn*: Hạn chế sử dụng các vật phẩm tiêu hao bổ trợ cao cấp để người chơi tập trung rèn luyện các đòn đấm thường và kỹ năng cơ bản.
+*   **Giải Anh Tài (Cấp 20 - 40)**:
+    *   *Địa điểm*: Đấu trường Làng Cổ Nhẫn.
+    *   *Giới hạn*: Cho phép kết hợp trang bị và đai dược phẩm giới hạn (như Cơm Nắm) để rèn luyện tư duy phối hợp chuỗi chiêu thức.
+*   **Giải Tôn Giả (Cấp 40 - 60)**:
+    *   *Địa điểm*: Đấu trường đặc biệt tại Làng Cổ Nhẫn tích hợp các cạm bẫy môi trường (ví dụ: bão cát hoang mạc gây giảm tầm nhìn, đầm lầy độc gây giảm tốc độ di chuyển) để kiểm tra kỹ năng thích ứng của người chơi.
+
+### B. Đại Hội Võ Thuật Đỉnh Cao: Thiên Hạ Đệ Nhất Nhẫn Hội (Bi-Daily Matchmaking)
+Đại hội so tài đỉnh cao giữa các gia tộc nhẫn giả, diễn ra định kỳ **2 ngày một lần** vào khung giờ vàng buổi tối.
+*   **Địa điểm đăng cai**: Hoàng Kim Đấu Trường tại thủ đô **Mộc Vân Quốc** (quốc gia giàu có trù phú nhất).
+*   **Cơ chế Ghép Cặp Tự Do (Free Matchmaking)**:
+    *   Không giới hạn cấp độ của người chơi. Hệ thống cho phép xếp hàng đơn (Solo Queue) hoặc lập nhóm tự do (Group Queue).
+    *   Server backend tự động tính toán điểm Elo ẩn và Lực chiến hiện tại của nhân vật để ghép cặp đối thủ xứng tầm nhanh nhất, giảm thiểu tối đa thời gian chờ đợi.
+    *   *Tích lũy Điểm Gia tộc*: Mỗi chiến thắng của người chơi sẽ tích điểm trực tiếp cho Gia tộc mà họ thuộc về (Mộc Linh, Huyết Nhãn, hoặc Bạch Nhãn).
+*   **Phần thưởng Vinh quang**:
+    *   Gia tộc có tổng điểm cao nhất sau ngày thi đấu sẽ giành chiến thắng, toàn bộ người chơi thuộc Gia tộc đó trên server sẽ nhận **Buff tăng 10% EXP và 5% tỷ lệ rơi đồ dã ngoại trong 2 ngày tiếp theo** (cho đến kỳ đại hội mới).
+    *   Lá cờ đại diện của Gia tộc chiến thắng sẽ được treo trang trọng tại quảng trường trung tâm của các Làng.
+
+### C. Đỉnh Cao Tập Thể Cuối Tuần: Bang Hội Tranh Đấu (Weekly Guild Wars)
+Giải đấu quy mô bang hội lớn nhất, diễn ra định kỳ vào chiều tối thứ Bảy và Chủ Nhật hàng tuần:
+*   **Vòng Loại Sơn Hà (Thứ Bảy, 18:00 - 20:00)**:
+    *   *Cơ chế*: Tất cả các bang hội tham gia chiến đấu trên bản đồ biên cảnh mở. Bang hội chiếm đóng các Cứ Điểm Cờ và tiêu diệt thành viên bang khác để tích lũy Điểm Bang Hội.
+    *   *Kết quả*: Kết thúc thời gian đấu, hệ thống chọn ra **Top 4 Bang hội có điểm số cao nhất** để bước vào vòng chung kết.
+*   **Vòng Chung Kết Lãnh Địa (Chủ Nhật, 18:00 - 20:00)**:
+    *   *Cơ chế*: 4 Bang hội mạnh nhất chia cặp thi đấu loại trực tiếp theo thể thức Công Thành Chiến (1 bên thủ Long Trụ tại tâm thành, 1 bên công phá). Trận đấu kết thúc khi Long Trụ bị phá hủy hoặc hết thời gian thủ.
+*   **Phần thưởng Bang hội tối thượng**:
+    *   *Lãnh Địa Hoàng Kim*: Bang hội vô địch được độc quyền kiểm soát và tiến vào map đặc quyền Lãnh Địa Hoàng Kim trong 1 tuần tiếp theo (bản đồ có mật độ thảo dược ngàn năm và quặng sắt hiếm cực cao phục vụ rèn đồ Tier cao).
+    *   *Tôn vinh Bang Chủ*: Tượng Bang Chủ được dựng trang trọng tại quảng trường Làng Cổ Nhẫn trong 1 tuần, kèm theo thú cưỡi Cự thú bọc giáp vàng độc bản và danh hiệu phát sáng quyền lực.
+    *   *Kinh tế Bang*: Tất cả thành viên bang nhận **Buff tăng 10% Vàng rơi ra khi diệt quái** trong 1 tuần.
+
+---
+
+## 11. CÁC LƯU Ý QUAN TRỌNG KHI PHÁT TRIỂN & VẬN HÀNH (PRODUCTION CONSIDERATIONS)
+
+Bên cạnh khía cạnh an toàn bảo mật, quá trình phát triển và vận hành game thực tế đòi hỏi sự chuẩn bị kỹ lưỡng cho các hạng mục sau:
+
+### A. Tối ưu hóa hiệu năng phía Client (Giảm giật lag, nóng máy)
+*   **Tránh rò rỉ bộ nhớ (Memory Leak) trên Phaser**: Việc sinh/hủy (spawn/destroy) quái vật, hiển thị hạt hiệu ứng (particles) liên tục và chuyển đổi bản đồ dễ để lại rác bộ nhớ nếu không giải phóng triệt để. Cần chủ động quản lý các bộ nhớ đệm đối tượng (Object Pooling) cho quái vật và đạn dược để tái sử dụng thay vì tạo mới liên tục.
+*   **Sprite Sheets & Texture Atlas**: Giảm thiểu số lượng WebGL Draw Calls bằng cách gộp tất cả hình ảnh nhân vật, quái vật và hiệu ứng đòn đánh vào các tấm Sprite Sheet lớn. Việc này giúp game duy trì tốc độ khung hình 60 FPS mượt mà ngay cả trên thiết bị di động cấu hình thấp.
+
+### B. Cân bằng kinh tế game & Chống lạm phát (Economy & Inflation Control)
+*   **Kiểm soát nguồn sinh (Fountains) và bể hút (Sinks) tiền tệ**:
+    *   *Nguồn sinh*: Chakra và Vàng nhận được khi diệt quái, làm nhiệm vụ chính tuyến và phụ bản Co-op Gauntlet Raid.
+    *   *Bể hút*: Tiêu hao tiền tệ thông qua các hoạt động: phí ghép Thần Thú Ngọc cấp cao, phí cường hóa trang bị bằng Chakra/Vàng (+1 đến +10), phí mua vật phẩm tiêu hao tại NPC, và chi phí nâng cấp chỉ số nhân vật (HP, Mana, kỹ năng Đấm/Chưởng) theo công thức lũy thừa bậc cao ($x^{3.8}$).
+*   **Hạn chế Clone Bot & Đẩy đồ**: Nếu có tính năng giao dịch, cần áp dụng cơ chế biên độ giá sàn/trần cho các vật phẩm và giới hạn số giao dịch hàng ngày của các tài khoản cấp thấp để tránh việc dùng bot cày tiền chuyển về tài khoản chính.
+
+### C. Vận hành, Mở rộng & Cập nhật không downtime (DevOps & Scalability)
+*   **Mở rộng hàng ngang (Horizontal Scaling)**: Thiết kế game server không lưu trạng thái cứng (Stateless logic). Phân cụm các bản đồ hoặc chia kênh (Channel) hoạt động sang các Game Server Instance (VPS phụ) độc lập. Sử dụng Redis Pub/Sub để đồng bộ thông tin chat toàn server, danh sách bạn bè và dữ liệu tổ đội xuyên suốt giữa các instance.
+*   **Cập nhật cấu hình động (Hot-Reload Configuration)**: Đảm bảo khả năng điều chỉnh các chỉ số cân bằng (HP/ATK quái vật, tỷ lệ rơi đồ, kích hoạt sự kiện Trăng Máu) trực tiếp trên Server bằng cách gửi tín hiệu reload file cấu hình (YAML/JSON) lên bộ nhớ RAM của Golang Server mà không cần phải tắt server để bảo trì.
+
+### D. Hệ thống thu thập chỉ số & Hỗ trợ người chơi (Analytics & Telemetry)
+*   **Hệ thống Log tập trung**: Triển khai các công cụ thu thập log tập trung (như Grafana Loki hoặc ELK Stack) ghi nhận đầy đủ mọi yêu cầu gửi lên từ client (nhặt đồ, hoàn thành nhiệm vụ, khảm ngọc). Khi người chơi báo lỗi mất đồ hoặc kẹt nhiệm vụ, đội ngũ kỹ thuật có thể truy vết chính xác lịch sử gói tin để hỗ trợ đền bù.
+*   **Phễu nhiệm vụ (Quest Funnel)**: Theo dõi tỷ lệ hoàn thành chuỗi 15 nhiệm vụ chính tuyến. Nếu phát hiện số lượng lớn người chơi bỏ game tại một nhiệm vụ cụ thể (ví dụ Nhiệm vụ 5 bảo vệ xe hàng), hệ thống sẽ cảnh báo để nhà thiết kế game kịp thời tinh chỉnh giảm độ khó hoặc tăng chỉ dẫn cho mượt mà.
+
+---
+
+## 12. KẾ HOẠCH XÁC MINH & CHẠY THỬ (VERIFICATION PLAN)
+
+*   **Xác minh Hệ Thống Giải Đấu & Bang Chiến (PvP Tournament & Guild Wars)**:
+    *   *Test Ba Giải Đấu Hằng Ngày*: Giả lập tạo các tài khoản cấp thấp (<10) thử đăng ký Giải Tân Thủ $\rightarrow$ Server chặn không cho đăng ký. Kiểm tra tài khoản cấp 15 đăng ký $\rightarrow$ Server chấp nhận. Kiểm tra hệ thống tự động bốc thăm ghép cặp ngẫu nhiên tại Làng Cổ Nhẫn và áp dụng hiệu ứng cạm bẫy (như làm chậm khi dẫm vào đầm lầy ở Giải Tôn Giả).
+    *   *Test Thiên Hạ Đệ Nhất Nhẫn Hội*: Giả lập 20 người chơi thuộc 3 gia tộc khác nhau tiến hành xếp hàng (queue) ghép cặp đấu. Xác minh thuật toán Elo ghép cặp cân bằng (chênh lệch Elo < 15%). Kết thúc giải, xác minh điểm số được cộng cho Gia tộc tương ứng, hệ thống tự động kích hoạt buff +10% EXP và +5% tỷ lệ rơi đồ trên diện rộng cho toàn bộ thành viên của Gia tộc thắng cuộc và dựng cờ tại quảng trường trung tâm.
+    *   *Test Bang Hội Tranh Đấu (Thứ Bảy & Chủ Nhật)*: Giả lập sự kiện Vòng Loại Sơn Hà vào 18:00 Thứ Bảy. Kiểm tra việc chiếm đóng cờ tài nguyên tăng điểm số bang hội trên Redis. Kết thúc vòng loại, chọn đúng Top 4 Bang có điểm cao nhất để lên lịch cho ngày Chủ Nhật. Trưa Chủ Nhật, giả lập vòng Chung kết Lãnh Địa, test va chạm và đồng bộ trạng thái HP của Long Trụ (Server-Authoritative) giữa client-server. Khi trận đấu kết thúc, hệ thống trao quyền truy cập map độc quyền Lãnh Địa Hoàng Kim cho bang thắng cuộc, dựng tượng Bang Chủ ở Làng Cổ Nhẫn và cộng 10% Vàng dã ngoại cho các thành viên bang.
+*   **Xác minh Kiến trúc Golang + Redis + MongoDB**:
+    *   *Kiểm tra Save Game (Write-Back)*: Cho nhân vật chơi game nhặt Chakra, lên cấp, khảm ngọc $\rightarrow$ Kiểm tra trên RAM và Redis cập nhật ngay lập tức. Ngắt đột ngột server (Crash test) và kiểm tra dữ liệu lưu trên MongoDB để đảm bảo cơ chế Write-Back Cache hoạt động chính xác không mất mát dữ liệu.
+    *   *Kiểm tra Leaderboard*: Cho 100 người chơi đồng loạt gửi điểm kinh nghiệm lên server $\rightarrow$ Kiểm tra Redis Sorted Sets tự động cập nhật thứ hạng chính xác trong 10ms.
+*   **Xác minh Bảo mật & Chống Hack**:
+    *   *Test Hack Tốc độ*: Sử dụng tool giả lập gửi liên tục tọa độ di chuyển tăng dần vượt tốc chạy tối đa $\rightarrow$ Xác minh Server thực hiện Rubberbanding giật vị trí của người chơi về tọa độ hợp lệ cuối cùng.
+    *   *Test Hack Mana/Cooldown (Dual-Check)*: Sửa đổi bộ nhớ client để spam Chưởng khi Mana bằng 0 $\rightarrow$ Xác minh Server phát hiện thiếu Mana, từ chối đòn đánh, không gây sát thương lên quái và gửi gói tin Sync ép client đồng bộ lại mana chuẩn là 0, đồng thời biến mất quả cầu lửa ảo.
+    *   *Test Hack Sát thương (One-hit hack)*: Client gửi gói tin báo quái chết chỉ sau 1 đòn đấm thường $\rightarrow$ Server kiểm tra lượng dame tối đa của người chơi nhân với số tick va chạm, phát hiện gian lận $\rightarrow$ Không ghi nhận quái chết, tự động kick hacker ra khỏi hệ thống.
+    *   *Test Spam Đòn Đánh (Action Rate Limiting)*: Gửi liên tiếp 10 gói tin ĐẤM trong vòng 50ms $\rightarrow$ Xác minh server chỉ chấp nhận gói tin hợp lệ đầu tiên, từ chối và vứt bỏ 9 gói tin đến sớm sau đó, đồng thời ghi nhận điểm cảnh cáo trong logs.
+    *   *Test Noclip / Fly Hack (Movement Validation)*: Sửa đổi client gửi tọa độ nhảy xuyên qua các bức tường vững chắc hoặc lơ lửng không trung khi chưa bật chế độ bay $\rightarrow$ Xác minh server tự kéo giật lùi (Rubberband) vị trí nhân vật về tọa độ hợp lệ gần nhất.
+    *   *Test Replay Attack*: Chụp gói tin WebSocket nhặt đồ cũ hoặc hoàn thành quest cũ rồi gửi lại $\rightarrow$ Xác minh server đối chiếu `Sequence ID` nhỏ hơn hoặc bằng giá trị hiện tại, phát hiện trùng lặp $\rightarrow$ Loại bỏ gói tin ngay lập tức.
+    *   *Test Nhặt Đồ / Mua Bán ảo*: Client tự gửi yêu cầu nhặt vật phẩm không có trên sàn đấu, hoặc gửi gói tin mua đồ NPC khi số dư vàng trong ví không đủ $\rightarrow$ Xác minh server từ chối giao dịch, giữ nguyên trạng thái tài khoản.
+    *   *Test Memory Scan (Cheat Engine)*: Sử dụng Cheat Engine quét giá trị tĩnh của HP/Mana trên RAM Client $\rightarrow$ Xác minh biến số đã bị mã hóa XOR xoay vòng, giá trị thay đổi liên tục trên bộ nhớ ảo của máy tính khiến hacker không thể quét ra chỉ số cố định.
+*   **Xác minh Độ trễ Chiến đấu (Visual mượt mà)**:
+    *   Thiết lập mạng giả lập độ trễ (latency) là 200ms $\rightarrow$ Người chơi thực hiện ĐẤM/CHƯỞNG $\rightarrow$ Kiểm tra hoạt ảnh và âm thanh đòn đánh vẫn diễn ra tức thời 0ms trên màn hình client. Số dame nhảy và thanh HP quái vật cập nhật sau 200ms mượt mà, không giật giật.
+*   **Xác minh Nén băng thông nhị phân**:
+    *   Sử dụng công cụ bắt gói tin (Wireshark) đo đạc kích thước các gói tin di chuyển và tấn công, đảm bảo kích thước trung bình $\le$ 15 bytes/gói tin.
+*   **Xác minh Hệ Thống Huyết Thanh (Consumable Serums)**:
+    *   *Test Huyết Thanh Hồi Phục*: Cho nhân vật còn 10% HP sử dụng Huyết Thanh Chakra Trích Xuất $\rightarrow$ HP/Mana hồi đầy lập tức. Thử sử dụng tiếp gói thứ 2 trong 5 giây $\rightarrow$ Server từ chối lệnh do cooldown 15 giây chưa kết thúc.
+    *   *Test Huyết Thanh Chỉ Số*: Cắn Huyết Thanh Cuồng Viêm $\rightarrow$ Chỉ số ATK tăng 30% trên RAM Server và đồng bộ về Client. Sau 10 phút hoặc khi chết, chỉ số trở về bình thường.
+    *   *Test Huyết Thanh Cuồng Nộ*: Sử dụng Huyết Thanh Cuồng Nộ $\rightarrow$ Điểm Nộ tăng lập tức từ 0% lên 100% trên Server và kích hoạt trạng thái sẵn sàng hóa thân Ultimate.
