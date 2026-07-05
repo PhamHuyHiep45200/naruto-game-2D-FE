@@ -1,13 +1,13 @@
 const frames = {
   itachi: { idle: [1, 4], run: [5, 8], jump: [9, 13], attack: [14, 22], skill: [23, 25] },
-  kakashi: { idle: [1, 4], run: [5, 8], jump: [9, 12], attack: [13, 20], skill: [21, 23] },
-  minato: { idle: [1, 4], run: [5, 8], jump: [9, 12], attack: [13, 20], skill: [21, 23] },
+  kakashi: { idle: [1, 4], run: [6, 9], jump: [9, 12], attack: [13, 20], skill: [21, 23] },
+  minato: { idle: [1, 4], run: [6, 9], jump: [9, 12], attack: [13, 20], skill: [21, 23] },
   naruto: { idle: [1, 4], run: [5, 8], jump: [9, 12], attack: [14, 20], skill: [21, 23] },
   hinata: { idle: [1, 3], run: [5, 7], jump: [9, 11], attack: [12, 20], skill: [21, 23] },
   neyji: { idle: [1, 4], run: [5, 7], jump: [9, 10], attack: [11, 18], skill: [19, 20] },
-  obito: { idle: [1, 4], run: [5, 8], jump: [9, 12], attack: [13, 20], skill: [21, 23] },
+  obito: { idle: [1, 4], run: [6, 9], jump: [9, 12], attack: [13, 20], skill: [21, 23] },
   sakura: { idle: [1, 4], run: [5, 8], jump: [9, 13], attack: [14, 19], skill: [20, 22] },
-  sasuke: { idle: [1, 4], run: [5, 8], jump: [9, 12], attack: [13, 19], skill: [20, 23] },
+  sasuke: { idle: [1, 4], run: [6, 9], jump: [9, 12], attack: [13, 19], skill: [20, 23] },
 };
 
 export const characters = [
